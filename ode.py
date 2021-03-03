@@ -1,6 +1,9 @@
+import sys
 import numpy as np
-import auto_diff
+import jax.numpy as jnp
+from jax import value_and_grad
 from scipy.optimize import fsolve
+from scipy.integrate import odeint, complex_ode, ode
 
 
 def regge_wheeler_pot(r, ll):
@@ -10,20 +13,34 @@ def regge_wheeler_pot(r, ll):
 
 
 def obtain_frequencies(M, E, L, e):
-    pass
+    """Angular frequencies for radial and azimuthal coordinates"""
+    omega_r = 1
+    omega_phi = 2
+    return omega_r, omega_phi
+
+
+# --------------------------------------------------
 
 
 def radius_from_rho(rho, sign):
+    """Get r coordinate from r*(rho)"""
     M = 1
 
     r_tort = rho / Omega_pm(rho, sign)
 
     def tort(r, r_tort):
         """We want to find the zero of this function"""
-        r_tort - (r + 2 * M * np.log(r / (2 * M) - 1))
+        if r / (2 * M) <= 1:
+            func = 1e5
+        else:
+            func = (r_tort - (r + 2 * M * np.log(r / (2 * M) - 1))) ** 2
+        return func
 
     r = fsolve(tort, 3 * M, r_tort)[0]
     return r
+
+
+# --------------------------------------------------
 
 
 def Omega_pm(rho, sign):
@@ -44,7 +61,8 @@ def Omega_pm(rho, sign):
         return np.pi / 2 / (rho_f - rho_i)
 
     def F_T(sigma):
-        return 0.5 * (1 + np.tanh(s / np.pi * (np.tan(sigma) - q ** 2 / np.tan(sigma))))
+        # return 0.5 * (1 + np.tanh(s / np.pi * (np.tan(sigma) - q ** 2 / np.tan(sigma))))
+        return 0.5 * (1 + jnp.tanh(sigma))
 
     def dF_T(sigma):
         """From wolfram alpha"""
@@ -77,32 +95,56 @@ def Omega_pm(rho, sign):
         raise (ValueError)
 
 
+# --------------------------------------------------
+
+
 def H_func(rho, sign):
     """1-drho/dr*"""
-    with auto_diff.AutoDiff(rho) as rho:
-        f_eval = Omega_pm(rho, sign)
-        Omega, dOmega = auto_diff.get_value_and_jacobian(f_eval)
+    Omega, dOmega = value_and_grad(Omega_pm, 0)(rho, sign)
     return 1 - Omega ** 2 / (Omega - rho * dOmega)
 
 
-def derivatives(R, Q, sign, ll, m, n):
+# --------------------------------------------------
+
+
+def derivatives(rho, y, sign, ll, omega):
     """Return derivatives of R_lmn and Q_lmn = dR_lmn"""
-    omega_r = 1
-    omega_phi = 2
-    omega = n * omega_r + m * omega_phi
-    rho = np.linspace(-5, 10, 1000)
+    R, Q = y[0], y[1]
     r = radius_from_rho(rho, sign)
     V = regge_wheeler_pot(r, ll)
-
-    with auto_diff.AutoDiff(rho) as rho:
-        f_eval = H_func(rho, sign)
-        H, dH = auto_diff.get_value_and_jacobian(f_eval)
-
-    H = H_func(rho, sign)
+    H, dH = value_and_grad(H_func, 0)(rho, sign)
     dR = Q
     dQ = (
         dH / (1 - H) * (Q + sign * 1j * omega * R)
         + 2j * sign * omega * H / (1 - H) * Q
         - ((1 + H) / (1 - H) * omega ** 2 - V / (1 - H) ** 2) * R
     )
-    return dR, dQ
+    return [dR, dQ]
+
+
+# --------------------------------------------------
+
+
+def main():
+    sign = -1
+    ll, m, n = 0, 0, 0
+    omega_r, omega_phi = obtain_frequencies(0, 0, 0, 0)
+    omega = n * omega_r + m * omega_phi
+
+    # Initial conditions
+    R = 1
+    y0 = (R, sign * 1j * omega * R)
+    rho0 = -4.0
+    rho1 = 9.5
+    drho = 0.1
+
+    result = ode(derivatives).set_integrator("zvode", method="bdf")
+    result.set_initial_value(y0, rho0).set_f_params(sign, ll, omega)
+    while result.successful() and result.t < rho1:
+        print(result.t + drho, result.integrate(result.t + drho))
+
+
+# --------------------------------------------------
+
+if __name__ == "__main__":
+    main()
