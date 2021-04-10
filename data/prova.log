@@ -1,0 +1,60 @@
+2021-04-10 18:43:43 - [INFO] - FRED RUN 0: Class Physical Quantities Created
+2021-04-10 18:43:43 - [INFO] - ------------------------------------------------------------
+2021-04-10 18:43:43 - [INFO] - -----------  PARAMETERS FOR RUN # 0 -----------------------
+2021-04-10 18:43:43 - [INFO] - Max_ell                = 5
+2021-04-10 18:43:43 - [INFO] - N_HD                   = 1000
+2021-04-10 18:43:43 - [INFO] - N_OD                   = 250
+2021-04-10 18:43:43 - [INFO] - N_ID                   = 1000
+2021-04-10 18:43:43 - [INFO] - N_Fourier              = 20
+2021-04-10 18:43:43 - [INFO] - field_spin             = 0.0
+2021-04-10 18:43:43 - [INFO] - mass_ratio             = 0.01
+2021-04-10 18:43:43 - [INFO] - particle_charge        = 1.0
+2021-04-10 18:43:43 - [INFO] - e_orbit                = 0.3
+2021-04-10 18:43:43 - [INFO] - p_orbit                = 7.0
+2021-04-10 18:43:43 - [INFO] - rho_horizon            = -20.0
+2021-04-10 18:43:43 - [INFO] - rho_H_C                = -10.0
+2021-04-10 18:43:43 - [INFO] - rho_H_S                = 0.0
+2021-04-10 18:43:43 - [INFO] - rho_peri               = 6.436801576408942
+2021-04-10 18:43:43 - [INFO] - rho_apo                = 12.772588722239782
+2021-04-10 18:43:43 - [INFO] - rho_I_S                = 150.0
+2021-04-10 18:43:43 - [INFO] - rho_I_C                = 200.0
+2021-04-10 18:43:43 - [INFO] - rho_infinity           = 250.0
+2021-04-10 18:43:43 - [INFO] - q_transition           = 1.3
+2021-04-10 18:43:43 - [INFO] - s_transition           = 1.5
+2021-04-10 18:43:43 - [INFO] - ------------------------------------------------------------
+2021-04-10 18:43:43 - [INFO] - -----------  EXTRA INFORMATION  ----------------------------
+2021-04-10 18:43:43 - [INFO] - Radial Period:  T_r    = {PP.T_r}
+2021-04-10 18:43:43 - [INFO] - Azimutal Period: T_phi = {PP.T_phi}
+2021-04-10 18:43:44 - [INFO] - FRED RUN 0: Projection of the geodesic onto the Radial Spatial Domain Done
+2021-04-10 18:43:44 - [INFO] - FRED RUN 0: Singular Part of the Self-Force Computed
+[2021-04-10 18:45:15 - INFO] FRED RUN 0: Class Physical Quantities Created
+[2021-04-10 18:45:15 - INFO] ------------------------------------------------------------
+[2021-04-10 18:45:15 - INFO] -----------  PARAMETERS FOR RUN # 0 -----------------------
+[2021-04-10 18:45:15 - INFO] Max_ell                = 5
+[2021-04-10 18:45:15 - INFO] N_HD                   = 1000
+[2021-04-10 18:45:15 - INFO] N_OD                   = 250
+[2021-04-10 18:45:15 - INFO] N_ID                   = 1000
+[2021-04-10 18:45:15 - INFO] N_Fourier              = 20
+[2021-04-10 18:45:15 - INFO] field_spin             = 0.0
+[2021-04-10 18:45:15 - INFO] mass_ratio             = 0.01
+[2021-04-10 18:45:15 - INFO] particle_charge        = 1.0
+[2021-04-10 18:45:15 - INFO] e_orbit                = 0.3
+[2021-04-10 18:45:15 - INFO] p_orbit                = 7.0
+[2021-04-10 18:45:15 - INFO] rho_horizon            = -20.0
+[2021-04-10 18:45:15 - INFO] rho_H_C                = -10.0
+[2021-04-10 18:45:15 - INFO] rho_H_S                = 0.0
+[2021-04-10 18:45:15 - INFO] rho_peri               = 6.436801576408942
+[2021-04-10 18:45:15 - INFO] rho_apo                = 12.772588722239782
+[2021-04-10 18:45:15 - INFO] rho_I_S                = 150.0
+[2021-04-10 18:45:15 - INFO] rho_I_C                = 200.0
+[2021-04-10 18:45:15 - INFO] rho_infinity           = 250.0
+[2021-04-10 18:45:15 - INFO] q_transition           = 1.3
+[2021-04-10 18:45:15 - INFO] s_transition           = 1.5
+[2021-04-10 18:45:15 - INFO] ------------------------------------------------------------
+[2021-04-10 18:45:15 - INFO] -----------  EXTRA INFORMATION  ----------------------------
+[2021-04-10 18:45:15 - INFO] Radial Period:  T_r    = {PP.T_r}
+[2021-04-10 18:45:15 - INFO] Azimutal Period: T_phi = {PP.T_phi}
+[2021-04-10 18:45:16 - INFO] FRED RUN 0: Projection of the geodesic onto the Radial Spatial Domain Done
+[2021-04-10 18:45:16 - INFO] FRED RUN 0: Singular Part of the Self-Force Computed
+[2021-04-10 18:48:31 - ERROR] The number of Collocation Points in Time, 'N_time', must be even.
+
