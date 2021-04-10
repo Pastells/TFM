@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from scipy import special
 from scipy.optimize import minimize_scalar
+from joblib import Parallel, delayed
 from class_SF_Physics import Physical_Quantities
 from Some_functions import run_basic_tests, Jump_Value, show_parameters, fred_goodbye
 from Schwarzschild import zero_of_r_p_at_X, t_p_at_X, phi_p_at_X
@@ -74,6 +75,12 @@ def main_run(SFdf, run, resfilename):
     # Checking the Run Parameters
     run_basic_tests(SFdf, run)
 
+    # Number of cores for parallel execution
+    # NUM_CORES = multiprocessing.cpu_count()
+    NUM_CORES = 6
+    # How many loops are done before checking for precision
+    BATCH_SIZE = 3
+
     # Setting up Physical Quantities
     PP = Physical_Quantities(SFdf, run)
     logging.info(f"FRED RUN {run}: Class Physical Quantities Created")
@@ -90,60 +97,73 @@ def main_run(SFdf, run, resfilename):
     singular_part(PP, run)
 
     # NOTE: Big Loop starts Here!
-    # Computing ell-Modes
-    for ll in range(0, PP.ell_max + 1):  # Harmonic Number l
-        for mm in range(0, ll + 1):  # Harmonic Number m
+    # Create pool of workers
+    with Parallel(n_jobs=NUM_CORES) as parallel:
+        # Computing ell-Modes
+        for ll in range(0, PP.ell_max + 1):  # Harmonic Number l
+            for mm in range(0, ll + 1):  # Harmonic Number m
 
-            # Check whether ell+m is odd (contribution is zero, so it can be skipped)
-            if (ll + mm) % 2 == 1:
-                continue
+                # Check whether ell+m is odd (contribution is zero, so it can be skipped)
+                if (ll + mm) % 2 == 1:
+                    continue
 
-            # Computing Fourier Modes (n-Modes):
-            n_estimated_error = 10.0 * PP.Mode_accuracy
-            nf = 0  # Fourier Mode Number
-            while nf <= PP.N_Fourier and n_estimated_error > PP.Mode_accuracy:
-                do_mode(ll, mm, nf, PP, run)
-                # Increasing the Fourier Mode Counter
-                nf += 1
-                n_estimated_error = np.amax(PP.Estimated_Error)
+                # Computing Fourier Modes (n-Modes) with batches of size NUM_CORES*BATCH_SIZE
+                n_estimated_error = 10.0 * PP.Mode_accuracy
+                nf_accum = 0
 
-            # Aplying the missing factor to the Radial Component of the Bare (full) Self-Force at each
-            # Particle Location (as determined by the SPACE index 'ns'):
-            # This completes what we could call the m-Mode Computation
-            PP.SF_F_r_lm_H[ll, mm] = (
-                PP.SF_F_r_lm_H[ll, mm]
-                * (PP.particle_charge / PP.r_p)
-                * PP.d_lm[ll, mm]
-                * np.exp(1j * mm * (PP.phi_p - PP.omega_phi * PP.t_p))
-            )
-            PP.SF_F_r_lm_I[ll, mm] = (
-                PP.SF_F_r_lm_I[ll, mm]
-                * (PP.particle_charge / PP.r_p)
-                * PP.d_lm[ll, mm]
-                * np.exp(1j * mm * (PP.phi_p - PP.omega_phi * PP.t_p))
-            )
+                while (1 + nf_accum) * NUM_CORES + 1 < PP.N_Fourier:
+                    print(nf_accum)
+                    modes = range(
+                        nf_accum * NUM_CORES * BATCH_SIZE,
+                        min((nf_accum + 1) * NUM_CORES * BATCH_SIZE, PP.N_Fourier),
+                    )
+                    parallel(delayed(do_mode)(ll, mm, nf, PP, run) for nf in modes)
+                    n_estimated_error = np.amax(PP.Estimated_Error)
 
-            # Computation of the Contribution of the m-Mode to the l-Mode of the Radial Component of the Bare (full) Self-Force
-            # NOTE: We have to distinguish the m=0 more from the rest:
-            if mm == 0:
-                PP.SF_F_r_l_H[ll] = PP.SF_F_r_l_H[ll] + PP.SF_F_r_lm_H[ll, mm]
-                PP.SF_F_r_l_I[ll] = PP.SF_F_r_l_I[ll] + PP.SF_F_r_lm_I[ll, mm]
-            else:
-                PP.SF_F_r_l_H[ll] = PP.SF_F_r_l_H[ll] + 2.0 * np.real(
+                    n_estimated_error = np.amax(PP.Estimated_Error)
+                    if n_estimated_error < PP.Mode_accuracy:
+                        break
+
+                    # Increasing the Fourier Mode Counter
+                    nf_accum += 1
+
+                # Aplying the missing factor to the Radial Component of the Bare (full) Self-Force at each
+                # Particle Location (as determined by the SPACE index 'ns'):
+                # This completes what we could call the m-Mode Computation
+                PP.SF_F_r_lm_H[ll, mm] = (
                     PP.SF_F_r_lm_H[ll, mm]
+                    * (PP.particle_charge / PP.r_p)
+                    * PP.d_lm[ll, mm]
+                    * np.exp(1j * mm * (PP.phi_p - PP.omega_phi * PP.t_p))
                 )
-                PP.SF_F_r_l_I[ll] = PP.SF_F_r_l_I[ll] + 2.0 * np.real(
+                PP.SF_F_r_lm_I[ll, mm] = (
                     PP.SF_F_r_lm_I[ll, mm]
+                    * (PP.particle_charge / PP.r_p)
+                    * PP.d_lm[ll, mm]
+                    * np.exp(1j * mm * (PP.phi_p - PP.omega_phi * PP.t_p))
                 )
 
-                # After having finished the Computation of an l-Mode we need to substract the Contribution from the Singular field:
-        # Computation of the l-Mode of the Radial Component of the Regular Self-Force:
-        PP.SF_R_r_l_H[ll] = PP.SF_F_r_l_H[ll] - PP.SF_S_r_l_H[ll]
-        PP.SF_R_r_l_I[ll] = PP.SF_F_r_l_I[ll] - PP.SF_S_r_l_I[ll]
+                # Computation of the Contribution of the m-Mode to the l-Mode of the Radial Component of the Bare (full) Self-Force
+                # NOTE: We have to distinguish the m=0 more from the rest:
+                if mm == 0:
+                    PP.SF_F_r_l_H[ll] = PP.SF_F_r_l_H[ll] + PP.SF_F_r_lm_H[ll, mm]
+                    PP.SF_F_r_l_I[ll] = PP.SF_F_r_l_I[ll] + PP.SF_F_r_lm_I[ll, mm]
+                else:
+                    PP.SF_F_r_l_H[ll] = PP.SF_F_r_l_H[ll] + 2.0 * np.real(
+                        PP.SF_F_r_lm_H[ll, mm]
+                    )
+                    PP.SF_F_r_l_I[ll] = PP.SF_F_r_l_I[ll] + 2.0 * np.real(
+                        PP.SF_F_r_lm_I[ll, mm]
+                    )
 
-        # Computation of the Contribution of the l-Mode of the Radial Component of the Regular Self-Force to the Total Regular Self-Force
-        PP.SF_r_H = PP.SF_r_H + PP.SF_R_r_l_H[ll]
-        PP.SF_r_I = PP.SF_r_I + PP.SF_R_r_l_I[ll]
+            # After having finished the Computation of an l-Mode we need to substract the Contribution from the Singular field:
+            # Computation of the l-Mode of the Radial Component of the Regular Self-Force:
+            PP.SF_R_r_l_H[ll] = PP.SF_F_r_l_H[ll] - PP.SF_S_r_l_H[ll]
+            PP.SF_R_r_l_I[ll] = PP.SF_F_r_l_I[ll] - PP.SF_S_r_l_I[ll]
+
+            # Computation of the Contribution of the l-Mode of the Radial Component of the Regular Self-Force to the Total Regular Self-Force
+            PP.SF_r_H = PP.SF_r_H + PP.SF_R_r_l_H[ll]
+            PP.SF_r_I = PP.SF_r_I + PP.SF_R_r_l_I[ll]
 
     # Once the Computation of the Self-Force has ended we save/print the results:
     # Taking end time of the Run and computing total time for the Run:
@@ -159,6 +179,7 @@ def main_run(SFdf, run, resfilename):
 def do_mode(ll, mm, nf, PP, run):
     """Computing the Bare Field Mode with Frequency omega_mn
     [REMEMBER: Psi is the scalar field and Phi its radial (tortoise) derivative]"""
+    # TODO change name of function
     omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
 
     compute_mode(ll, omega_mn, PP)
