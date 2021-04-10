@@ -112,15 +112,17 @@ def main_run(SFdf, run, resfilename):
                 nf_accum = 0
 
                 while (1 + nf_accum) * NUM_CORES + 1 < PP.N_Fourier:
-                    print(nf_accum)
+                    print(ll, mm, nf_accum, n_estimated_error, PP.Mode_accuracy)
                     modes = range(
                         nf_accum * NUM_CORES * BATCH_SIZE,
                         min((nf_accum + 1) * NUM_CORES * BATCH_SIZE, PP.N_Fourier),
                     )
                     parallel(delayed(do_mode)(ll, mm, nf, PP, run) for nf in modes)
-                    n_estimated_error = np.amax(PP.Estimated_Error)
+                    logging.info(
+                        f"FRED RUN {run}: Mode (l,m,n) = ({ll},{mm},{nf_accum}) Computed"
+                    )
 
-                    n_estimated_error = np.amax(PP.Estimated_Error)
+                    # n_estimated_error = np.amax(PP.Estimated_Error)
                     if n_estimated_error < PP.Mode_accuracy:
                         break
 
@@ -166,11 +168,7 @@ def main_run(SFdf, run, resfilename):
             PP.SF_r_I = PP.SF_r_I + PP.SF_R_r_l_I[ll]
 
     # Once the Computation of the Self-Force has ended we save/print the results:
-    # Taking end time of the Run and computing total time for the Run:
-    run_end_time = time.time()
-    run_total_time = run_end_time - run_start_time
-
-    run_prints(PP, run, resfilename)
+    run_prints(PP, run, resfilename, run_start_time)
 
 
 # ---------------------------------------------------------------------
@@ -180,10 +178,14 @@ def do_mode(ll, mm, nf, PP, run):
     """Computing the Bare Field Mode with Frequency omega_mn
     [REMEMBER: Psi is the scalar field and Phi its radial (tortoise) derivative]"""
     # TODO change name of function
+    # joblib doesn't propagate logger to workers
+    logging.basicConfig(level=logging.INFO)
+
     omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
 
-    compute_mode(ll, omega_mn, PP)
+    # compute_mode(ll, omega_mn, PP)
     logging.info(f"FRED RUN {run}: Mode (l,m,n) = ({ll},{mm},{nf}) Computed")
+    return
     """
     plt.plot(PP.rho_HD, PP.single_R_HD.real)
     plt.plot(PP.rho_HD, PP.single_R_HD.imag)
@@ -261,6 +263,7 @@ def do_mode(ll, mm, nf, PP, run):
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:
         do_mode(ll, mm, -nf, PP, run)
+    return
 
 
 # ---------------------------------------------------------------------
@@ -394,7 +397,7 @@ def singular_part(PP, run):
 # ---------------------------------------------------------------------
 
 
-def run_prints(PP, run, resfilename):
+def run_prints(PP, run, resfilename, run_start_time):
     """Printing the different field components with zero Fourier Mode (nf = 0)
     P for ll in range(0, PP.ell_max+1):                         # Harmonic Number l
     P for mm in range(0, ll+1):                             # Harmonic Number m
@@ -402,6 +405,9 @@ def run_prints(PP, run, resfilename):
     P print('l=',ll,' m=',mm,' R- =', PP.R_H[ll, mm, PP.N_Fourier, ns],
     ' Q- =', PP.Q_H[ll, mm, PP.N_Fourier, ns],' R+ =', PP.R_I[ll, mm, PP.N_Fourier, ns],' Q+ =', PP.Q_I[ll, mm, PP.N_Fourier, ns])"""
     # fmt: off
+    # Taking end time of the Run and computing total time for the Run:
+    run_end_time = time.time()
+    run_total_time = run_end_time - run_start_time
 
     # Printing the l-components of the Bare Self-Force
     ns = 3
@@ -430,7 +436,7 @@ def run_prints(PP, run, resfilename):
         resultsfile.write(f"#   Orbital Semilatus Rectum:                        p = {PP.p_orbit}\n")
         resultsfile.write(f"#   Total Run Time:                                 Tc = {run_total_time}\n#\n")
         resultsfile.write("#   r_p            F_r-            F_r+\n")
-        for ns in range(0, 2*PP.N_OD + 1):
+        for ns in range(PP.N_OD):
             resultsfile.write(f"{PP.r_p[ns]:.6f},{np.real(PP.SF_r_H[ns]):.14f},{np.real(PP.SF_r_I[ns]):.14f}\n")
 
     # fmt: on
