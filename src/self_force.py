@@ -11,7 +11,6 @@ from Some_functions import run_basic_tests, Jump_Value, show_parameters, fred_go
 from Schwarzschild import zero_of_r_p_at_X, t_p_at_X, phi_p_at_X
 
 # julia imports
-"""
 import julia
 
 jl = julia.Julia(compiled_modules=False)
@@ -19,7 +18,6 @@ from julia import Main
 
 Main.include("mode_comp.jl")
 compute_mode = Main.eval("compute_mode")
-"""
 
 print("main imports done")
 
@@ -183,9 +181,8 @@ def do_mode(ll, mm, nf, PP, run):
 
     omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
 
-    # compute_mode(ll, omega_mn, PP)
+    compute_mode(ll, omega_mn, PP)
     logging.info(f"FRED RUN {run}: Mode (l,m,n) = ({ll},{mm},{nf}) Computed")
-    return
     """
     plt.plot(PP.rho_HD, PP.single_R_HD.real)
     plt.plot(PP.rho_HD, PP.single_R_HD.imag)
