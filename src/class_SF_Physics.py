@@ -8,13 +8,11 @@ from orbital_computations import (
     sco_odes_rhs,
 )
 from Schwarzschild import r_schwarzschild_to_r_tortoise
-from Some_functions import compute_spectral_coefficients_real, spectral_time_integration
 
-
+# fmt: off
 class Physical_Quantities:
-
-    # Initializer / Instance Attributes
     def __init__(self, DF, run):
+        """Initializer / Instance Attributes"""
 
         self.run = run
 
@@ -110,12 +108,8 @@ class Physical_Quantities:
         self.SF_F_r_l_I = np.zeros((_ell_max1, _N_OD1), dtype=np.complex128)
 
         # Arrays for Estimating the Error in the Fourier Series [to assess where to truncate the series]
-        self.Accumulated_SF_F_r_lm_H = np.zeros(
-            (_ell_max1, _ell_max1, _N_OD1), dtype=np.complex128
-        )
-        self.Accumulated_SF_F_r_lm_I = np.zeros(
-            (_ell_max1, _ell_max1, _N_OD1), dtype=np.complex128
-        )
+        self.Accumulated_SF_F_r_lm_H = np.zeros((_ell_max1, _ell_max1, _N_OD1), dtype=np.complex128)
+        self.Accumulated_SF_F_r_lm_I = np.zeros((_ell_max1, _ell_max1, _N_OD1), dtype=np.complex128)
 
         self.Estimated_Error = np.zeros(_N_OD1)
 
@@ -146,30 +140,18 @@ class Physical_Quantities:
 
         # Arrays for the computation of the Bare (full) Self-Force at the Particle Location:
         # The values of R_lmn and Q_lmn at the Particle location as evaluated at the two domains that contain the Particle
-        self.R_H = np.zeros(
-            (_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128
-        )
-        self.R_I = np.zeros(
-            (_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128
-        )
-        self.Q_H = np.zeros(
-            (_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128
-        )
-        self.Q_I = np.zeros(
-            (_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128
-        )
+        self.R_H = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
+        self.R_I = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
+        self.Q_H = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
+        self.Q_I = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
 
         # Array for the d_lm coefficients associated with the SCO's energy-momentum tensor
         self.d_lm = np.zeros((_ell_max1, _ell_max1), dtype=np.complex128)
 
         # Array for the C_lmn coefficients (for correcting the solutions of the master
         # equations according to the true boundary conditions at the particle location):
-        self.Cp_lmn = np.zeros(
-            (_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128
-        )
-        self.Cm_lmn = np.zeros(
-            (_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128
-        )
+        self.Cp_lmn = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
+        self.Cm_lmn = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
 
         # Arrays for the Fourier Modes of the Jumps:
         self.J_lmn = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1), dtype=np.complex128)
@@ -186,10 +168,7 @@ class Physical_Quantities:
         e2 = (self.e_orbit) ** 2
 
         self.Ep = np.sqrt(
-            (
-                (self.p_orbit - 2.0 - 2.0 * self.e_orbit)
-                * (self.p_orbit - 2.0 + 2.0 * self.e_orbit)
-            )
+            ( (self.p_orbit - 2.0 - 2.0 * self.e_orbit) * (self.p_orbit - 2.0 + 2.0 * self.e_orbit))
             / ((self.p_orbit) * (self.p_orbit - 3.0 - e2))
         )
         self.Lp = (self.p_orbit) / (np.sqrt(self.p_orbit - 3.0 - e2))
@@ -257,10 +236,7 @@ class Physical_Quantities:
             sco_odes_rhs,
             y0,
             self.t_p_f,
-            args=(
-                self.p_orbit,
-                self.e_orbit,
-            ),
+            args=( self.p_orbit, self.e_orbit),
             rtol=1.0e-13,
             atol=1.0e-14,
         )
@@ -275,9 +251,7 @@ class Physical_Quantities:
         self.rs_p_f = self.r_p_f - 2.0 * np.log(0.5 * (self.r_p_f) - 1.0)
 
         # Uniform Grid for the Schwarzschild Radial Coordinate: r_p
-        self.r_p = self.r_peri + ((self.r_apo - self.r_peri) / self.N_OD) * np.arange(
-            _N_OD1
-        )
+        self.r_p = self.r_peri + ((self.r_apo - self.r_peri) / self.N_OD) * np.arange( _N_OD1)
 
         # Computing the d_lm coefficients:
         for ll in range(0, _ell_max1):
@@ -290,13 +264,17 @@ class Physical_Quantities:
                 else:
                     self.d_lm[ll, mm] = 0.0
 
-    # Instance Removal
     def __del__(self):
+        """Instance Removal"""
         logging.info("Physical Parameter Class deleted!")
         logging.info("FRED Code (c) 2012-2021 C.F. Sopuerta")
 
-    # Class containing the data for the transition function used in the Hyperboloidal Compactification
     class TransitionFunction:
+        """Class containing the data for the transition function used in the Hyperboloidal Compactification"""
+
         def __init__(self):
             self.s = 0.0
             self.q = 0.0
+
+
+# fmt: on
