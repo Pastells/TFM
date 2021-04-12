@@ -441,11 +441,11 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     p = [ll,omega_mn,PP]
 
     # HD
-    print("HD")
+    # print("HD")
     u0 = [1, 0, 0, -p[2]]
     tspan = (PP.rho_H_plus, PP.rho_peri)
     prob = ODEProblem(RHS_HD,u0,tspan,p)
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HD, dt=1e-3)
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HD, dt=1e-4)
 
     u_matrix =  hcat(sol.u...)'
     lambda_minus = last(sol.u)[1]
@@ -454,7 +454,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     PP.single_Q_HD = u_matrix[:,3] + 1im * u_matrix[:,4]
 
     # HOD
-    print("HOD")
+    # print("HOD")
     u0 = last(sol.u)
     tspan = (PP.rho_peri, PP.rho_apo)
     prob = ODEProblem(RHS_HOD,u0,tspan,p)
@@ -466,7 +466,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     PP.single_Q_HOD = u_matrix[:,3] + 1im * u_matrix[:,4]
 
     # ID (backwards)
-    print("ID")
+    # print("ID")
     u0 = [1,0,0,p[2]]
     tspan = (-PP.rho_I,-PP.rho_apo)
     prob = ODEProblem(RHS_ID,u0,tspan,p)
@@ -481,7 +481,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     PP.single_Q_ID = u_matrix[:,3] + 1im * u_matrix[:,4]
 
     # IOD (backwards)
-    print("IOD")
+    # print("IOD")
     u0 = last(sol.u)
     tspan = (-PP.rho_apo, -PP.rho_peri)
     prob = ODEProblem(RHS_IOD,u0,tspan,p)

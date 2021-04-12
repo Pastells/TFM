@@ -272,14 +272,9 @@ def project_geodesic(PP, run):
 
         PP.t_p[ii] = t_p_at_X(Xv, PP)
         PP.phi_p[ii] = phi_p_at_X(Xv, PP)
-        # PP.t_p_s[ii] = t_p_at_X(Xv,PP)
-        # PP.r_p_s[ii] = r_p_at_X(Xv,PP)
-        # PP.rs_p_s[ii] = rs_p_at_X(Xv,PP)
 
     PP.t_p[PP.N_OD] = PP.t_p_f[PP.N_time]
     PP.phi_p[PP.N_OD] = PP.phi_p_f[PP.N_time]
-    # PP.r_p_s[PP.N_space] = PP.r_p_h[PP.N_time]
-    # PP.rs_p_s[PP.N_space] = PP.rs_p_h[PP.N_time]
 
     PP.rs_p = PP.r_p - 2.0 * np.log(0.5 * (PP.r_p) - 1.0)
 

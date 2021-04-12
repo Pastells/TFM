@@ -236,7 +236,7 @@ class Physical_Quantities:
             sco_odes_rhs,
             y0,
             self.t_p_f,
-            args=( self.p_orbit, self.e_orbit),
+            args=(self.p_orbit, self.e_orbit),
             rtol=1.0e-13,
             atol=1.0e-14,
         )
