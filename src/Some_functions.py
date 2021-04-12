@@ -72,7 +72,7 @@ def spectral_time_integration(integrand, T_r):
     An = np.zeros(N + 1, dtype=np.complex128)
 
     #  Computing Spectral Coefficients of the integrand
-    An = compute_spectral_coefficients_complex(integrand)
+    An = compute_spectral_coefficients(integrand, True)
 
     #  Computing Integral
     integral_value = 0.0

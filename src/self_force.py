@@ -1,57 +1,34 @@
-import sys
+"""FRED Code (c) 2012-2021 C.F. Sopuerta"""
+
 import time
 import logging
+import argparse
 import pandas as pd
 import numpy as np
 from scipy import special
 from scipy.optimize import minimize_scalar
 from class_SF_Physics import Physical_Quantities
-from Some_functions import run_basic_tests, Jump_Value, show_parameters, fred_goodbye
+from Some_functions import (
+    run_basic_tests,
+    Jump_Value,
+    show_parameters,
+    fred_goodbye,
+    logging_func,
+)
 from Schwarzschild import zero_of_r_p_at_X, t_p_at_X, phi_p_at_X
 
-# julia imports
-import julia
-
-jl = julia.Julia(compiled_modules=False)
-from julia import Main
-
-Main.include("mode_comp.jl")
-compute_mode = Main.eval("compute_mode")
-
-print("main imports done")
 
 # ---------------------------------------------------------------------
 
 
-def main():
+def main(SFdf, resfilename):
+    """Execute main program"""
 
     start_time = time.time()  # Initialize clock
 
-    # Read Data from Parameter File into an Pandas DataFrame [SFdf]
-    filename = sys.argv[1]
-    SFdf = pd.read_csv(filename)
     N_runs = SFdf.shape[0]
 
-    # Preparing Files for saving Self-Force Results
-    # prestring = "results-"
-    # resfilename = prestring + filename
-    resfilename = filename[:-4] + "_results.csv"
-    print(resfilename)
-    with open(resfilename, "w") as resultsfile:
-        resultsfile.write(
-            f'# FRED RESULTS FILE [File opened on {time.strftime("%Y-%m-%d %H:%M")}]\n'
-        )
-
-    # logging
-    logfilename = filename[:-4] + ".log"
-    logging.basicConfig(
-        filename=logfilename,
-        format="[%(asctime)s - %(levelname)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        level=logging.INFO,
-    )
-
-    # Starting the different Runs in the Parameter File 'filename'
+    # Starting the different Runs in the Parameter File 'data'
     for run in range(0, N_runs):
         main_run(SFdf, run, resfilename)
 
@@ -60,6 +37,36 @@ def main():
     logging.info(f"Execution Time: {end_time - start_time} seconds")
 
     fred_goodbye()
+
+
+# ---------------------------------------------------------------------
+
+
+def init():
+    """Read data, import julia, initialize parser and logger
+    Returns SFdf dataframe and resfilename"""
+
+    # --- Parser ---
+    parser = argparse.ArgumentParser(description="FRED program")
+    parser.add_argument("data", type=str, help="Input csv data file")
+    parser.add_argument("-log_print", action="store_true", help="Print all log output")
+    args = parser.parse_args()
+
+    # --- Read Data from Parameter File into a Pandas DataFrame [SFdf] ---
+    filename = args.data
+    SFdf = pd.read_csv(filename)
+
+    # Preparing Files for saving Self-Force Results
+    resfilename = filename[:-4] + "_results.csv"
+    with open(resfilename, "w") as resultsfile:
+        resultsfile.write(
+            f'# FRED RESULTS FILE [File opened on {time.strftime("%Y-%m-%d %H:%M")}]\n'
+        )
+
+    # logging
+    logging_func(filename, args.log_print)
+
+    return SFdf, resfilename
 
 
 # ---------------------------------------------------------------------
@@ -134,7 +141,7 @@ def main_run(SFdf, run, resfilename):
                     PP.SF_F_r_lm_I[ll, mm]
                 )
 
-                # After having finished the Computation of an l-Mode we need to substract the Contribution from the Singular field:
+        # After having finished the Computation of an l-Mode we need to substract the Contribution from the Singular field:
         # Computation of the l-Mode of the Radial Component of the Regular Self-Force:
         PP.SF_R_r_l_H[ll] = PP.SF_F_r_l_H[ll] - PP.SF_S_r_l_H[ll]
         PP.SF_R_r_l_I[ll] = PP.SF_F_r_l_I[ll] - PP.SF_S_r_l_I[ll]
@@ -144,11 +151,7 @@ def main_run(SFdf, run, resfilename):
         PP.SF_r_I = PP.SF_r_I + PP.SF_R_r_l_I[ll]
 
     # Once the Computation of the Self-Force has ended we save/print the results:
-    # Taking end time of the Run and computing total time for the Run:
-    run_end_time = time.time()
-    run_total_time = run_end_time - run_start_time
-
-    run_prints(PP, run, resfilename)
+    run_prints(PP, run, resfilename, run_start_time)
 
 
 # ---------------------------------------------------------------------
@@ -157,21 +160,13 @@ def main_run(SFdf, run, resfilename):
 def do_mode(ll, mm, nf, PP, run):
     """Computing the Bare Field Mode with Frequency omega_mn
     [REMEMBER: Psi is the scalar field and Phi its radial (tortoise) derivative]"""
+    # TODO change name of function
+
     omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
 
     compute_mode(ll, omega_mn, PP)
     logging.info(f"FRED RUN {run}: Mode (l,m,n) = ({ll},{mm},{nf}) Computed")
-    """
-    plt.plot(PP.rho_HD, PP.single_R_HD.real)
-    plt.plot(PP.rho_HD, PP.single_R_HD.imag)
-    plt.plot(PP.rho_HOD, PP.single_R_HOD.real)
-    plt.plot(PP.rho_HOD, PP.single_R_HOD.imag)
-    plt.plot(PP.rho_IOD, PP.single_R_IOD.real)
-    plt.plot(PP.rho_IOD, PP.single_R_IOD.imag)
-    plt.plot(PP.rho_ID, PP.single_R_ID.real)
-    plt.plot(PP.rho_ID, PP.single_R_ID.imag)
-    plt.show()
-    """
+    print(f"FRED RUN {run}: Mode (l,m,n) = ({ll},{mm},{nf}) Computed")
 
     PP.R_H[ll, mm, nf + PP.N_Fourier, :] = PP.single_R_HOD
     PP.R_I[ll, mm, nf + PP.N_Fourier, :] = PP.single_R_IOD
@@ -238,6 +233,7 @@ def do_mode(ll, mm, nf, PP, run):
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:
         do_mode(ll, mm, -nf, PP, run)
+    return
 
 
 # ---------------------------------------------------------------------
@@ -371,7 +367,7 @@ def singular_part(PP, run):
 # ---------------------------------------------------------------------
 
 
-def run_prints(PP, run, resfilename):
+def run_prints(PP, run, resfilename, run_start_time):
     """Printing the different field components with zero Fourier Mode (nf = 0)
     P for ll in range(0, PP.ell_max+1):                         # Harmonic Number l
     P for mm in range(0, ll+1):                             # Harmonic Number m
@@ -379,6 +375,9 @@ def run_prints(PP, run, resfilename):
     P print('l=',ll,' m=',mm,' R- =', PP.R_H[ll, mm, PP.N_Fourier, ns],
     ' Q- =', PP.Q_H[ll, mm, PP.N_Fourier, ns],' R+ =', PP.R_I[ll, mm, PP.N_Fourier, ns],' Q+ =', PP.Q_I[ll, mm, PP.N_Fourier, ns])"""
     # fmt: off
+    # Taking end time of the Run and computing total time for the Run:
+    run_end_time = time.time()
+    run_total_time = run_end_time - run_start_time
 
     # Printing the l-components of the Bare Self-Force
     ns = 3
@@ -407,7 +406,7 @@ def run_prints(PP, run, resfilename):
         resultsfile.write(f"#   Orbital Semilatus Rectum:                        p = {PP.p_orbit}\n")
         resultsfile.write(f"#   Total Run Time:                                 Tc = {run_total_time}\n#\n")
         resultsfile.write("#   r_p            F_r-            F_r+\n")
-        for ns in range(0, 2*PP.N_OD + 1):
+        for ns in range(0, PP.N_OD):
             resultsfile.write(f"{PP.r_p[ns]:.6f},{np.real(PP.SF_r_H[ns]):.14f},{np.real(PP.SF_r_I[ns]):.14f}\n")
 
     # fmt: on
@@ -416,4 +415,23 @@ def run_prints(PP, run, resfilename):
 # ---------------------------------------------------------------------
 
 if __name__ == "__main__":
-    main()
+    # Init is executed before importing julia for fast argparse help
+
+    start_time = time.time()  # Initialize clock
+    SFdf, resfilename = init()
+
+    # --- julia imports ---
+    import julia
+
+    jl = julia.Julia(compiled_modules=False)
+    from julia import Main
+
+    Main.include("src/mode_comp.jl")
+    compute_mode = Main.eval("compute_mode")  # global function
+
+    print("julia imports done")
+    # ------------------------------------------------------
+    setup_time = time.time()
+    logging.info(f"Setup Time: {setup_time - start_time} seconds")
+
+    main(SFdf, resfilename)

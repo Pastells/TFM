@@ -441,7 +441,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     p = [ll,omega_mn,PP]
 
     # HD
-    # print("HD")
+    print("HD")
     u0 = [1, 0, 0, -p[2]]
     tspan = (PP.rho_H_plus, PP.rho_peri)
     prob = ODEProblem(RHS_HD,u0,tspan,p)
@@ -454,7 +454,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     PP.single_Q_HD = u_matrix[:,3] + 1im * u_matrix[:,4]
 
     # HOD
-    # print("HOD")
+    print("HOD")
     u0 = last(sol.u)
     tspan = (PP.rho_peri, PP.rho_apo)
     prob = ODEProblem(RHS_HOD,u0,tspan,p)
@@ -466,7 +466,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     PP.single_Q_HOD = u_matrix[:,3] + 1im * u_matrix[:,4]
 
     # ID (backwards)
-    # print("ID")
+    print("ID")
     u0 = [1,0,0,p[2]]
     tspan = (-PP.rho_I,-PP.rho_apo)
     prob = ODEProblem(RHS_ID,u0,tspan,p)
@@ -481,7 +481,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     PP.single_Q_ID = u_matrix[:,3] + 1im * u_matrix[:,4]
 
     # IOD (backwards)
-    # print("IOD")
+    print("IOD")
     u0 = last(sol.u)
     tspan = (-PP.rho_apo, -PP.rho_peri)
     prob = ODEProblem(RHS_IOD,u0,tspan,p)
@@ -495,40 +495,3 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     PP.single_Q_IOD = u_matrix[:,3] + 1im * u_matrix[:,4]
     return
 end
-
-
-#=
-for ll in 0:l_max
-    for mm in 0:ll
-        if (ll+mm)%2 == 1
-            continue
-
-        n_estimated_error = 10.0 * PP.Mode_accuracy
-        nf = 0  # Fourier Mode Number
-        while nf <= PP.N_Fourier and n_estimated_error > PP.Mode_accuracy:
-            if nf == 0:
-
-                compute_mode(ll, mm, nf, PP)
-                print(f"FRED RUN {run}: Mode (l,m,0) = ({ll},{mm},0) Computed")
-
-                PP.R_H[ll, mm, nf + PP.N_Fourier, :] = PP.single_R_HOD
-                PP.R_I[ll, mm, nf + PP.N_Fourier, :] = PP.single_R_IOD
-                PP.Q_H[ll, mm, nf + PP.N_Fourier, :] = PP.single_Q_HOD
-                PP.Q_I[ll, mm, nf + PP.N_Fourier, :] = PP.single_Q_IOD
-
-                for ns in range(0, PP.N_OD + 1):  # Space Collocation Points
-
-                    # Initializing the Error Estimate:
-                    PP.Estimated_Error[ns] = PP.Mode_accuracy
-
-                    # Particle Location (rho/rstar and r Coordinates):
-                    rstar = PP.rs_p[ns]
-                    rp = PP.r_p[ns]
-
-                    # Schwarzschild metric function 'f = 1 - 2M/r':
-                    fp = 1.0 - 2.0 / rp
-
-                    # Computing the Value of the Jump:
-                    PP.J_lmn[ll, mm, nf + PP.N_Fourier] = Jump_Value(ll, mm, nf, PP)
-                    print(nf, PP.J_lmn[ll, mm, nf + PP.N_Fourier])
-=#
