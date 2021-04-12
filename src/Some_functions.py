@@ -1,18 +1,23 @@
+import sys
 import logging
 import numpy as np
 from scipy import special
 import matplotlib.pyplot as plt
 
 
-# This function computes the spectral coefficients associated with the collocation values
-# (associated with a Chebyshev-Lobatto Grid) of a given function
-def compute_spectral_coefficients_real(Ui):
+def compute_spectral_coefficients(Ui, imag=False):
+    """Computes the spectral coefficients associated with the collocation values
+    (associated with a Chebyshev-Lobatto Grid) of a given function
+    Specify imag=True for complex numbers"""
 
     # Estimating the Number of Collocation Points:
     N = Ui.size - 1
 
     # Allocating Array for Spectral Coefficients:
-    An = np.zeros(N + 1)
+    if imag is False:
+        An = np.zeros(N + 1)
+    else:
+        An = np.zeros(N + 1, dtype=np.complex128)
 
     # Computing Spectral Coefficients:
     for nn in range(0, N + 1, 1):
@@ -30,35 +35,9 @@ def compute_spectral_coefficients_real(Ui):
     return An
 
 
-# This function computes the spectral coefficients associated with the collocation values
-# (associated with a Chebyshev-Lobatto Grid) of a given function
-def compute_spectral_coefficients_complex(Ui):
-
-    # Estimating the Number of Collocation Points:
-    N = Ui.size - 1
-
-    # Allocating Array for Spectral Coefficients:
-    An = np.zeros(N + 1, dtype=np.complex128)
-
-    # Computing Spectral Coefficients:
-    for nn in range(0, N + 1, 1):
-        An[nn] = Ui[0] + ((-1) ** nn) * Ui[N]
-
-        for kk in range(1, N, 1):
-            An[nn] = An[nn] + 2.0 * (np.cos((np.pi) * kk * nn / N)) * Ui[kk]
-        if nn == 0:
-            An[nn] = 0.5 * An[nn] / N
-        elif nn == N:
-            An[nn] = 0.5 * ((-1) ** N) * An[nn] / N
-        else:
-            An[nn] = ((-1) ** nn) * An[nn] / N
-
-    return An
-
-
-# This function evaluates a spectral function at a given spectral point given
-# the value of the Spectral Coordinate and the set of Spectral Coefficients of the Function.
 def value_at_a_point(X, An):
+    """Evaluates a spectral function at a given spectral point given
+    the value of the Spectral Coordinate and the set of Spectral Coefficients of the Function."""
 
     # Estimating the Number of Spectral Coefficients/Collocation Points:
     N = An.size - 1
@@ -77,9 +56,9 @@ def value_at_a_point(X, An):
     return Value_at_Point
 
 
-# This function returns the value of the integration of a given integrand over half period of time
-# (from 0 to T_r/2). The integration technique uses a spectral method based on a Chebyshev-Lobatto Grid
 def spectral_time_integration(integrand, T_r):
+    """This function returns the value of the integration of a given integrand over half period of time
+    (from 0 to T_r/2). The integration technique uses a spectral method based on a Chebyshev-Lobatto Grid"""
 
     #  Array Size:
     N = integrand.size - 1
@@ -105,8 +84,8 @@ def spectral_time_integration(integrand, T_r):
     return integral_value
 
 
-# Testing consistency of the Run Parameters:
 def run_basic_tests(DF, run):
+    """Testing consistency of the Run Parameters"""
 
     if DF.e_orbit[run] < 1.0e-14:
         logging.error("This version of the FRED Code computes the Self-Force for\n")
@@ -129,8 +108,8 @@ def run_basic_tests(DF, run):
     return
 
 
-# Computing the Fourier Modes of the Jumps [induced by the presence of the Particle]:
 def Jump_Value(ll, mm, nf, PP):
+    """Computing the Fourier Modes of the Jumps [induced by the presence of the Particle]"""
 
     # Computing the Jump Global Coefficient [ONLY lm dependence]
     # [NOTE: The factor 8.0 instead of 4.0 is because the integration routine 'spectral_time_integration' uses the interval (0,T_r/2), not (0,T_r)]
@@ -149,8 +128,8 @@ def Jump_Value(ll, mm, nf, PP):
     return Jump_lmn
 
 
-# Printing the Different Run Parameters:
 def show_parameters(PP, run):
+    """Printing the Different Run Parameters"""
     # if __name__ == "__main__":
     logging.info("------------------------------------------------------------")
     logging.info(f"-----------  PARAMETERS FOR RUN # {run} -----------------------")
@@ -181,8 +160,8 @@ def show_parameters(PP, run):
     return
 
 
-#  This funtion just says Goodbye :-)
 def fred_goodbye():
+    """This funtion just says Goodbye :-)"""
     # if __name__ == "__main__":
     logging.info("Thanks for using the FRED Code (version py-v3.0)")
     logging.info("FRED Code (c) 2012-2021 C.F. Sopuerta")
@@ -190,8 +169,8 @@ def fred_goodbye():
     quit()
 
 
-#  This functions plots the whole Minus and Plus Sectors separately
 def plotall(CGC, PP):
+    """This functions plots the whole Minus and Plus Sectors separately"""
 
     # PLOT of R_H versus r_H
     plt.plot(CGC.r_H, PP.single_R_H, label="H Interval")
@@ -308,8 +287,8 @@ def plotall(CGC, PP):
     return
 
 
-#  This functions makes a single plot from the Data given
 def plotsomething(X, Y):
+    """This functions makes a single plot from the Data given"""
 
     plt.plot(X, Y, label="Y=Y(X)")
 
@@ -317,16 +296,14 @@ def plotsomething(X, Y):
     plt.ylabel("Y")
 
     plt.title("FRED Plot")
-
     plt.legend()
-
     plt.show()
 
     return
 
 
-#  This functions makes a multiple plot from the Data given
 def plotseveral(arg1, *Pargs):
+    """This functions makes a multiple plot from the Data given"""
 
     n = 0
     for argf in Pargs:
@@ -337,11 +314,31 @@ def plotseveral(arg1, *Pargs):
     plt.ylabel("Y")
 
     plt.title("FRED Plot")
-
     plt.legend()
-
     plt.show()
 
     # for np in range(1,nplots+1,1):
-
     return
+
+
+def logging_func(filename, log_print):
+    """Create logger, print all logging info if log_print == True"""
+    logfilename = filename[:-4] + ".log"
+    format_str = "[%(asctime)s - %(levelname)s] %(message)s"
+
+    logging.basicConfig(
+        filename=logfilename,
+        format=format_str,
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO,
+    )
+    if log_print:
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(format_str)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logging.getLogger("matplotlib").setLevel(logging.WARNING)
