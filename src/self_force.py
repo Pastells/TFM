@@ -21,27 +21,6 @@ from Schwarzschild import zero_of_r_p_at_X, t_p_at_X, phi_p_at_X
 # ---------------------------------------------------------------------
 
 
-def main(SFdf, resfilename):
-    """Execute main program"""
-
-    start_time = time.time()  # Initialize clock
-
-    N_runs = SFdf.shape[0]
-
-    # Starting the different Runs in the Parameter File 'data'
-    for run in range(0, N_runs):
-        main_run(SFdf, run, resfilename)
-
-    # Final Time after Computations
-    end_time = time.time()
-    logging.info(f"Execution Time: {end_time - start_time} seconds")
-
-    fred_goodbye()
-
-
-# ---------------------------------------------------------------------
-
-
 def init():
     """Read data, import julia, initialize parser and logger
     Returns SFdf dataframe and resfilename"""
@@ -67,6 +46,27 @@ def init():
     logging_func(filename, args.log_print)
 
     return SFdf, resfilename
+
+
+# ---------------------------------------------------------------------
+
+
+def main(SFdf, resfilename):
+    """Execute main program"""
+
+    start_time = time.time()  # Initialize clock
+
+    N_runs = SFdf.shape[0]
+
+    # Starting the different Runs in the Parameter File 'data'
+    for run in range(0, N_runs):
+        main_run(SFdf, run, resfilename)
+
+    # Final Time after Computations
+    end_time = time.time()
+    logging.info(f"Execution Time: {end_time - start_time} seconds")
+
+    fred_goodbye()
 
 
 # ---------------------------------------------------------------------
@@ -166,7 +166,6 @@ def do_mode(ll, mm, nf, PP, run):
 
     compute_mode(ll, omega_mn, PP)
     logging.info(f"FRED RUN {run}: Mode (l,m,n) = ({ll},{mm},{nf}) Computed")
-    print(f"FRED RUN {run}: Mode (l,m,n) = ({ll},{mm},{nf}) Computed")
 
     PP.R_H[ll, mm, nf + PP.N_Fourier, :] = PP.single_R_HOD
     PP.R_I[ll, mm, nf + PP.N_Fourier, :] = PP.single_R_IOD
@@ -416,15 +415,22 @@ if __name__ == "__main__":
     SFdf, resfilename = init()
 
     # --- julia imports ---
+    """
+    from julia.api import LibJulia
+    api = LibJulia.load()
+    api.sysimage = "sysimage2/ODEs.so"
+    api.init_julia()
+    """
     import julia
 
-    jl = julia.Julia(compiled_modules=False)
+    jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage/ODEs.so")
+    # from julia.api import Julia
+    # Julia(debug=True)
     from julia import Main
 
     Main.include("src/mode_comp.jl")
     compute_mode = Main.eval("compute_mode")  # global function
-
-    print("julia imports done")
+    logging.info("julia imports done")
     # ------------------------------------------------------
     setup_time = time.time()
     logging.info(f"Setup Time: {setup_time - start_time} seconds")

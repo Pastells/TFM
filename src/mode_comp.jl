@@ -1,22 +1,28 @@
 using OrdinaryDiffEq
-#using DifferentialEquations
+# using Printf
+# using DifferentialEquations
 
 using PyCall
-@pyimport importlib.machinery as machinery
+machinery = pyimport("importlib.machinery")
 loader = machinery.SourceFileLoader("Schwarzschild",
                                     "/home/pol/Documents/master_modelling/tfm/code/src/Schwarzschild.py")
-schw = loader[:load_module]("Schwarzschild")
+schw = loader.load_module("Schwarzschild")
 include("./hyperboloidal_compactification_tanh.jl")
 
 # -----------------------------------------------
 
 function regge_wheeler_potential(rstar, ll)
+
     cb = ll * (ll + 1)
     xstar = 0.5 * rstar - 1.0
-    xsch = schw[:rstar_to_xsch](rstar)
+    xsch = schw.r_tortoise_to_x_schwarzschild(rstar)
     rsch = 2.0 * (1.0 + xsch)
     # exp(xstar-x) = x
-    return 2.0 * exp(xstar - xsch) * (cb + 2.0 / rsch) / (rsch^3)
+
+    Vl =  2.0 * exp(xstar - xsch) * (cb + 2.0 / rsch) / (rsch^3)
+
+    # @printf("%f, %f, %f, %f, %f, %f\n", rstar, ll, xstar, xsch, rsch, Vl)
+    return Vl
 end
 
 # -----------------------------------------------
@@ -109,7 +115,6 @@ function RHS_HD(du, u, p, t)
 
     # Integration through the Horizon Domain (HD)
     if PP.rho_H <= rho <= PP.rho_HC
-
         epsilon_rho = rho + 20
 
         # Integration near the Horizon
@@ -124,7 +129,7 @@ function RHS_HD(du, u, p, t)
         else
             Omega = 1.0 - rho / PP.rho_H
             rstar = rho / Omega
-            xsch = schw[:rstar_to_xsch](rstar)
+            xsch = schw.r_tortoise_to_x_schwarzschild(rstar)
             rsch = 2.0 * (1.0 + xsch)
             rsch2 = rsch * rsch
             rsch3 = rsch2 * rsch
@@ -412,7 +417,8 @@ function RHS_ID(du, u, p, t)
 
     elseif rho <= PP.rho_IS
         #    elseif rho <= PP.rho_IS and rho >= PP.rho_apo:
-        xsch = schw.r_tortoise_to_x_schwarzschild(rho)
+        xsch = schw.r_tortoise_to_x_schwarzschild(rho)  # rstar = rho
+
         rsch = 2.0 * (1.0 + xsch)
         rsch2 = rsch * rsch
         rsch3 = rsch2 * rsch
@@ -445,7 +451,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     u0 = [1, 0, 0, -p[2]]
     tspan = (PP.rho_H_plus, PP.rho_peri)
     prob = ODEProblem(RHS_HD,u0,tspan,p)
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HD, dt=1e-4)
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HD)
 
     u_matrix =  hcat(sol.u...)'
     lambda_minus = last(sol.u)[1]
@@ -458,7 +464,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     u0 = last(sol.u)
     tspan = (PP.rho_peri, PP.rho_apo)
     prob = ODEProblem(RHS_HOD,u0,tspan,p)
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD, dt=1e-2)
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD)
 
     u_matrix =  hcat(sol.u...)'
     u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
@@ -471,7 +477,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     tspan = (-PP.rho_I,-PP.rho_apo)
     prob = ODEProblem(RHS_ID,u0,tspan,p)
     PP.rho_ID = -PP.rho_ID # t -> -t
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_ID, dt=1e-2)
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_ID)
     PP.rho_ID = -PP.rho_ID # -t -> t
 
     u_matrix =  hcat(sol.u...)'
@@ -486,7 +492,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     tspan = (-PP.rho_apo, -PP.rho_peri)
     prob = ODEProblem(RHS_IOD,u0,tspan,p)
     PP.rho_IOD = -PP.rho_IOD # t -> -t
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_IOD, dt=1e-2)
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_IOD)
     PP.rho_IOD = -PP.rho_IOD # -t -> t
 
     u_matrix =  hcat(sol.u...)'
