@@ -10,7 +10,6 @@ from scipy.optimize import minimize_scalar
 from class_SF_Physics import Physical_Quantities
 from Some_functions import (
     run_basic_tests,
-    Jump_Value,
     show_parameters,
     fred_goodbye,
     logging_func,
@@ -112,43 +111,11 @@ def main_run(SFdf, run, resfilename):
                 nf += 1
                 n_estimated_error = np.amax(PP.Estimated_Error)
 
-            # Aplying the missing factor to the Radial Component of the Bare (full) Self-Force at each
-            # Particle Location (as determined by the SPACE index 'ns'):
-            # This completes what we could call the m-Mode Computation
-            PP.SF_F_r_lm_H[ll, mm] = (
-                PP.SF_F_r_lm_H[ll, mm]
-                * (PP.particle_charge / PP.r_p)
-                * PP.d_lm[ll, mm]
-                * np.exp(1j * mm * (PP.phi_p - PP.omega_phi * PP.t_p))
-            )
-            PP.SF_F_r_lm_I[ll, mm] = (
-                PP.SF_F_r_lm_I[ll, mm]
-                * (PP.particle_charge / PP.r_p)
-                * PP.d_lm[ll, mm]
-                * np.exp(1j * mm * (PP.phi_p - PP.omega_phi * PP.t_p))
-            )
-
-            # Computation of the Contribution of the m-Mode to the l-Mode of the Radial Component of the Bare (full) Self-Force
-            # NOTE: We have to distinguish the m=0 more from the rest:
-            if mm == 0:
-                PP.SF_F_r_l_H[ll] = PP.SF_F_r_l_H[ll] + PP.SF_F_r_lm_H[ll, mm]
-                PP.SF_F_r_l_I[ll] = PP.SF_F_r_l_I[ll] + PP.SF_F_r_lm_I[ll, mm]
-            else:
-                PP.SF_F_r_l_H[ll] = PP.SF_F_r_l_H[ll] + 2.0 * np.real(
-                    PP.SF_F_r_lm_H[ll, mm]
-                )
-                PP.SF_F_r_l_I[ll] = PP.SF_F_r_l_I[ll] + 2.0 * np.real(
-                    PP.SF_F_r_lm_I[ll, mm]
-                )
+            # Complete m-Mode Computation and add contribution to l-Mode
+            PP.complete_m_mode(ll, mm)
 
         # After having finished the Computation of an l-Mode we need to substract the Contribution from the Singular field:
-        # Computation of the l-Mode of the Radial Component of the Regular Self-Force:
-        PP.SF_R_r_l_H[ll] = PP.SF_F_r_l_H[ll] - PP.SF_S_r_l_H[ll]
-        PP.SF_R_r_l_I[ll] = PP.SF_F_r_l_I[ll] - PP.SF_S_r_l_I[ll]
-
-        # Computation of the Contribution of the l-Mode of the Radial Component of the Regular Self-Force to the Total Regular Self-Force
-        PP.SF_r_H = PP.SF_r_H + PP.SF_R_r_l_H[ll]
-        PP.SF_r_I = PP.SF_r_I + PP.SF_R_r_l_I[ll]
+        PP.complete_l_mode(ll)
 
     # Once the Computation of the Self-Force has ended we save/print the results:
     run_prints(PP, run, resfilename, run_start_time)
@@ -167,67 +134,7 @@ def do_mode(ll, mm, nf, PP, run):
     compute_mode(ll, omega_mn, PP)
     logging.info(f"FRED RUN {run}: Mode (l,m,n) = ({ll},{mm},{nf}) Computed")
 
-    PP.R_H[ll, mm, nf + PP.N_Fourier, :] = PP.single_R_HOD
-    PP.R_I[ll, mm, nf + PP.N_Fourier, :] = PP.single_R_IOD
-    PP.Q_H[ll, mm, nf + PP.N_Fourier, :] = PP.single_Q_HOD
-    PP.Q_I[ll, mm, nf + PP.N_Fourier, :] = PP.single_Q_IOD
-
-    # Computing the Values of the Field Modes (Phi,Psi)lmn [~ (R,Q)lmn in Frequency Domain] at the Particle Location
-    # at the different Time Collocation Points that satisfy the Boundary Conditions imposed by the Jump Conditions.
-    # [FIRST WITH ARBITRARY BOUNDARY CONDITIONS, USING THE SOLUTION FOUND IN THE PREVIOUS POINT AND AFTERWARDS,
-    # RESCALING WITH THE C_lmn COEFFICIENTS TO OBTAIN THE FIELD MODES (lmn) WITH THE CORRECT BOUNDARY CONDITIONS.
-    # THIS INCLUDES THE COMPUTATION OF THE C_lmn COEFFICIENTS]:
-    # NOTE: REMEMBER that we have projected the geodesics onto the Spatial Domain "containing" the Particle: [r_peri, r_apo]
-    # NOTE: This why the index goes form 0 to N_space instead of from 0 to N_time
-
-    # Computing the Value of the Jump:
-    PP.J_lmn[ll, mm, nf + PP.N_Fourier] = Jump_Value(ll, mm, nf, PP)
-
-    # Particle Location (rho/rstar and r Coordinates):
-    rp = PP.r_p
-
-    # Schwarzschild metric function 'f = 1 - 2M/r':
-    fp = 1.0 - 2.0 / rp
-
-    # Computing the Value of the Jump:
-    PP.J_lmn[ll, mm, nf + PP.N_Fourier] = Jump_Value(ll, mm, nf, PP)
-
-    indices = (ll, mm, nf + PP.N_Fourier)
-
-    # Computing the C_lmn Coefficients [for the Harmonic mode (ll,mm), Fourier mode 'nt', and location <=> time 'ns']:
-    Wronskian_RQ = PP.R_I[indices] * PP.Q_H[indices] - PP.R_H[indices] * PP.Q_I[indices]
-
-    PP.Cm_lmn[indices] = -PP.R_I[indices] * PP.J_lmn[indices] / Wronskian_RQ
-    PP.Cp_lmn[indices] = -PP.R_H[indices] * PP.J_lmn[indices] / Wronskian_RQ
-
-    # Computing the Values of the Bare Field Modes (R,Q)(ll,mm,nn) at the Particle Location 'ns'
-    # using the Correct Boundary Conditions: RESCALING WITH THE C_lmn COEFFICIENTS:
-    PP.R_H[indices] = PP.Cm_lmn[indices] * PP.R_H[indices]
-    PP.Q_H[indices] = PP.Cm_lmn[indices] * PP.Q_H[indices]
-
-    PP.R_I[indices] = PP.Cp_lmn[indices] * PP.R_I[indices]
-    PP.Q_I[indices] = PP.Cp_lmn[indices] * PP.Q_I[indices]
-
-    # Computation of the contribution of the Fourier Mode 'nf' (l m nf) to the Radial Component of the Bare (full) Self-Force:
-    # [NOTE: This is the contribution up to a multiplicative factor that is applied below]
-    PP.SF_F_r_lm_H[ll, mm] = PP.SF_F_r_lm_H[ll, mm] + (
-        PP.Q_H[indices] / fp - PP.R_H[indices] / rp
-    ) * np.exp(-1j * nf * PP.omega_r * PP.t_p)
-    PP.SF_F_r_lm_I[ll, mm] = PP.SF_F_r_lm_I[ll, mm] + (
-        PP.Q_I[indices] / fp - PP.R_I[indices] / rp
-    ) * np.exp(-1j * nf * PP.omega_r * PP.t_p)
-
-    # print( f"l={ll} m={mm} n={nf}: c_H[{nf}]={PP.SF_F_r_lm_H[ll, mm]:.14f}  c_I[{nf}]={PP.SF_F_r_lm_I[ll, mm]:.14f}")
-
-    # Store Contribution and Estimate Error
-    # TODO accumulated might not be necessary
-    PP.Accumulated_SF_F_r_lm_H[ll, mm] = PP.SF_F_r_lm_H[ll, mm]
-    PP.Accumulated_SF_F_r_lm_I[ll, mm] = PP.SF_F_r_lm_I[ll, mm]
-
-    PP.Estimated_Error = np.maximum(
-        np.absolute(PP.Accumulated_SF_F_r_lm_H[ll, mm]),
-        np.absolute(PP.Accumulated_SF_F_r_lm_I[ll, mm]),
-    )
+    PP.rescale_mode(ll, mm, nf)
 
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:
@@ -242,9 +149,6 @@ def project_geodesic(PP, run):
     """Projecting the geodesic into the Particle Domains (from Horizon and to Infinity)"""
     PP.t_p[0] = PP.t_p_f[0]
     PP.phi_p[0] = PP.phi_p_f[0]
-    # PP.r_p[0] = PP.r_p_f[0]
-    # PP.rs_p[0] = PP.rs_p_f[0]
-    # PP.chi_p[0] = PP.chi_p_f[0]
 
     for ii in range(1, PP.N_OD):
         ntime = 0
@@ -424,8 +328,6 @@ if __name__ == "__main__":
     import julia
 
     jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage/ODEs.so")
-    # from julia.api import Julia
-    # Julia(debug=True)
     from julia import Main
 
     Main.include("src/mode_comp.jl")

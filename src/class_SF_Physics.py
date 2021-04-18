@@ -8,6 +8,7 @@ from orbital_computations import (
     sco_odes_rhs,
 )
 from Schwarzschild import r_schwarzschild_to_r_tortoise
+from Some_functions import Jump_Value
 
 # fmt: off
 class Physical_Quantities:
@@ -264,17 +265,125 @@ class Physical_Quantities:
                 else:
                     self.d_lm[ll, mm] = 0.0
 
+
+    # ------------------------------------------------------------------------
+    # Functions
+    # ------------------------------------------------------------------------
+
+
+    def complete_m_mode(self, ll, mm):
+        """Apply the missing factor to the Radial Component of the Bare (full)
+        Self-Force at each particle location
+        Add contribution of the m_Mode to the l_Mode of the Radial Component"""
+
+        self.SF_F_r_lm_H[ll, mm] = (
+            self.SF_F_r_lm_H[ll, mm]
+            * (self.particle_charge / self.r_p)
+            * self.d_lm[ll, mm]
+            * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
+        )
+        self.SF_F_r_lm_I[ll, mm] = (
+            self.SF_F_r_lm_I[ll, mm]
+            * (self.particle_charge / self.r_p)
+            * self.d_lm[ll, mm]
+            * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
+        )
+
+        # Add contribution to l-Mode
+        if mm == 0:
+            self.SF_F_r_l_H[ll] += self.SF_F_r_lm_H[ll, mm]
+            self.SF_F_r_l_I[ll] += self.SF_F_r_lm_I[ll, mm]
+        else:
+            self.SF_F_r_l_H[ll] += 2 * np.real(self.SF_F_r_lm_H[ll, mm])
+            self.SF_F_r_l_I[ll] += 2 * np.real(self.SF_F_r_lm_I[ll, mm])
+
+
+    def complete_l_mode(self, ll):
+        """substract l-Mode contribution from the Singular field"""
+        # Computation of the l-Mode of the Radial Component of the Regular Self-Force:
+        self.SF_R_r_l_H[ll] = self.SF_F_r_l_H[ll] - self.SF_S_r_l_H[ll]
+        self.SF_R_r_l_I[ll] = self.SF_F_r_l_I[ll] - self.SF_S_r_l_I[ll]
+
+        # Total Regular Self-Force
+        self.SF_r_H = self.SF_r_H + self.SF_R_r_l_H[ll]
+        self.SF_r_I = self.SF_r_I + self.SF_R_r_l_I[ll]
+
+
+    def rescale_mode(self, ll, mm, nf):
+        """Computing the Values of the Field Modes (Phi,Psi)lmn [~ (R,Q)lmn in Frequency Domain] at the Particle Location
+        at the different Time Collocation Points that satisfy the Boundary Conditions imposed by the Jump Conditions.
+        [First with arbitrary boundary conditions, using the solution found in the previous point and afterwards,
+        rescaling with the C_lmn coefficients to obtain the field modes (lmn) With the correct boundary conditions.
+        this includes the computation of the C_lmn coefficients]:
+        NOTE: REMEMBER that we have projected the geodesics onto the Spatial Domain "containing" the Particle: [r_peri, r_apo]
+        NOTE: This why the index goes form 0 to N_space instead of from 0 to N_time"""
+
+        indices = (ll, mm, nf + self.N_Fourier)
+
+        # Store computed modes from compute_mode
+        self.R_H[indices] = self.single_R_HOD
+        self.R_I[indices] = self.single_R_IOD
+        self.Q_H[indices] = self.single_Q_HOD
+        self.Q_I[indices] = self.single_Q_IOD
+
+
+        # Particle Location (rho/rstar and r Coordinates)
+        rp = self.r_p
+
+        # Schwarzschild metric function 'f = 1 - 2M/r'
+        fp = 1.0 - 2.0 / rp
+
+        # Value of the Jump
+        self.J_lmn[indices] = Jump_Value(ll, mm, nf, self)
+
+        # Computing the C_lmn Coefficients [for the Harmonic mode (ll,mm), Fourier mode 'nt', and location <=> time 'ns']
+        Wronskian_RQ = self.R_I[indices] * self.Q_H[indices] - self.R_H[indices] * self.Q_I[indices]
+
+        self.Cm_lmn[indices] = -self.R_I[indices] * self.J_lmn[indices] / Wronskian_RQ
+        self.Cp_lmn[indices] = -self.R_H[indices] * self.J_lmn[indices] / Wronskian_RQ
+
+        # Computing the Values of the Bare Field Modes (R,Q)(ll,mm,nn) at the Particle Location 'ns'
+        # using the Correct Boundary Conditions: RESCALING WITH THE C_lmn COEFFICIENTS
+        self.R_H[indices] = self.Cm_lmn[indices] * self.R_H[indices]
+        self.Q_H[indices] = self.Cm_lmn[indices] * self.Q_H[indices]
+
+        self.R_I[indices] = self.Cp_lmn[indices] * self.R_I[indices]
+        self.Q_I[indices] = self.Cp_lmn[indices] * self.Q_I[indices]
+
+        # Computation of the contribution of the Fourier Mode 'nf' (l m nf) to the Radial Component of the Bare (full) Self-Force
+        # [NOTE: This is the contribution up to a multiplicative factor that is applied below]
+        self.SF_F_r_lm_H[ll, mm] = self.SF_F_r_lm_H[ll, mm] + (
+            self.Q_H[indices] / fp - self.R_H[indices] / rp
+        ) * np.exp(-1j * nf * self.omega_r * self.t_p)
+        self.SF_F_r_lm_I[ll, mm] = self.SF_F_r_lm_I[ll, mm] + (
+            self.Q_I[indices] / fp - self.R_I[indices] / rp
+        ) * np.exp(-1j * nf * self.omega_r * self.t_p)
+
+        # print( f"l={ll} m={mm} n={nf}: c_H[{nf}]={self.SF_F_r_lm_H[ll, mm]:.14f}  c_I[{nf}]={self.SF_F_r_lm_I[ll, mm]:.14f}")
+
+        # Store Contribution and Estimate Error
+        # TODO accumulated might not be necessary
+        self.Accumulated_SF_F_r_lm_H[ll, mm] = self.SF_F_r_lm_H[ll, mm]
+        self.Accumulated_SF_F_r_lm_I[ll, mm] = self.SF_F_r_lm_I[ll, mm]
+
+        self.Estimated_Error = np.maximum(
+            np.absolute(self.Accumulated_SF_F_r_lm_H[ll, mm]),
+            np.absolute(self.Accumulated_SF_F_r_lm_I[ll, mm]),
+        )
+
+
     def __del__(self):
         """Instance Removal"""
         logging.info("Physical Parameter Class deleted!")
         logging.info("FRED Code (c) 2012-2021 C.F. Sopuerta")
 
+
     class TransitionFunction:
         """Class containing the data for the transition function used in the Hyperboloidal Compactification"""
+
 
         def __init__(self):
             self.s = 0.0
             self.q = 0.0
-
 
 # fmt: on
