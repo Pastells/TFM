@@ -1,3 +1,4 @@
+using StaticArrays
 using OrdinaryDiffEq
 # using Printf
 # using DifferentialEquations
@@ -102,7 +103,7 @@ function RHS_HD_zero_freq(du, u, p, t)
 
 end
 
-function RHS_HD(du, u, p, t)
+function RHS_HD(u, p, t)
     #=This function defines the form of the ODE system that determine the solution to the Master Equation
     NOTE: This is ONLY for the Horizon Domain=#
 
@@ -196,16 +197,11 @@ function RHS_HD(du, u, p, t)
         print("rho= ",rho,"  Out of Domain error during ODE Integration at the Horizon Domain")
     end
 
-    du[1] = real(dR)
-    du[2] = imag(dR)
-    du[3] = real(dQ)
-    du[4] = imag(dQ)
-
-    return du
+    @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
 
-function RHS_HOD(du, u, p, t)
+function RHS_HOD(u, p, t)
     #=This function defines the form of the ODE system that determine the solution to the Master Equation
     NOTE: This is ONLY for the Orbital Domain (Horizon or Infinity)=#
 
@@ -220,15 +216,10 @@ function RHS_HOD(du, u, p, t)
     dR = Q
     dQ = (Vl - w_mn^2) * R
 
-    du[1] = real(dR)
-    du[2] = imag(dR)
-    du[3] = real(dQ)
-    du[4] = imag(dQ)
-
-    return du
+    @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
-function RHS_IOD(du, u, p, t)
+function RHS_IOD(u, p, t)
     #=This function defines the form of the ODE system that determine the solution to the Master Equation
     NOTE: This is ONLY for the Orbital Domain (Horizon or Infinity)
     Defined backward, e.i. rho -> -rho, so can be integrated from right to left=#
@@ -244,15 +235,10 @@ function RHS_IOD(du, u, p, t)
     dR = -Q
     dQ = -(Vl - w_mn^2) * R
 
-    du[1] = real(dR)
-    du[2] = imag(dR)
-    du[3] = real(dQ)
-    du[4] = imag(dQ)
-
-    return du
+    @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
-function RHS_ID(du, u, p, t)
+function RHS_ID(u, p, t)
 
     ll, w_mn, PP = p
     rho = t
@@ -432,13 +418,7 @@ function RHS_ID(du, u, p, t)
         print( "rho= ", rho, "  Out of Domain error during ODE Integration at the Horizon Domain")
     end
 
-    du[1] = real(dR)
-    du[2] = imag(dR)
-    du[3] = real(dQ)
-    du[4] = imag(dQ)
-
-    return du
-
+    @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
 
@@ -448,7 +428,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
 
     # HD
     # print("HD")
-    u0 = [1, 0, 0, -p[2]]
+    u0 = @SVector [1, 0, 0, -p[2]]
     tspan = (PP.rho_H_plus, PP.rho_peri)
     prob = ODEProblem(RHS_HD,u0,tspan,p)
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HD)
@@ -462,6 +442,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     # HOD
     # print("HOD")
     u0 = last(sol.u)
+    @SVector [u0[1], u0[2], u0[3], u0[4]]
     tspan = (PP.rho_peri, PP.rho_apo)
     prob = ODEProblem(RHS_HOD,u0,tspan,p)
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD)
@@ -473,7 +454,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
 
     # ID (backwards)
     # print("ID")
-    u0 = [1,0,0,p[2]]
+    u0 = @SVector [1,0,0,p[2]]
     tspan = (-PP.rho_I,-PP.rho_apo)
     prob = ODEProblem(RHS_ID,u0,tspan,p)
     PP.rho_ID = -PP.rho_ID # t -> -t
@@ -489,6 +470,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     # IOD (backwards)
     # print("IOD")
     u0 = last(sol.u)
+    @SVector [u0[1], u0[2], u0[3], u0[4]]
     tspan = (-PP.rho_apo, -PP.rho_peri)
     prob = ODEProblem(RHS_IOD,u0,tspan,p)
     PP.rho_IOD = -PP.rho_IOD # t -> -t
