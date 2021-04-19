@@ -252,7 +252,7 @@ class Physical_Quantities:
         self.rs_p_f = self.r_p_f - 2.0 * np.log(0.5 * (self.r_p_f) - 1.0)
 
         # Uniform Grid for the Schwarzschild Radial Coordinate: r_p
-        self.r_p = self.r_peri + ((self.r_apo - self.r_peri) / self.N_OD) * np.arange( _N_OD1)
+        self.r_p = self.r_peri + ((self.r_apo - self.r_peri) / self.N_OD) * np.arange(_N_OD1)
 
         # Computing the d_lm coefficients:
         for ll in range(0, _ell_max1):
@@ -276,15 +276,13 @@ class Physical_Quantities:
         Self-Force at each particle location
         Add contribution of the m_Mode to the l_Mode of the Radial Component"""
 
-        self.SF_F_r_lm_H[ll, mm] = (
-            self.SF_F_r_lm_H[ll, mm]
-            * (self.particle_charge / self.r_p)
+        self.SF_F_r_lm_H[ll, mm] *= (
+            (self.particle_charge / self.r_p)
             * self.d_lm[ll, mm]
             * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
         )
-        self.SF_F_r_lm_I[ll, mm] = (
-            self.SF_F_r_lm_I[ll, mm]
-            * (self.particle_charge / self.r_p)
+        self.SF_F_r_lm_I[ll, mm] *= (
+            (self.particle_charge / self.r_p)
             * self.d_lm[ll, mm]
             * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
         )
@@ -361,15 +359,14 @@ class Physical_Quantities:
 
         # print( f"l={ll} m={mm} n={nf}: c_H[{nf}]={self.SF_F_r_lm_H[ll, mm]:.14f}  c_I[{nf}]={self.SF_F_r_lm_I[ll, mm]:.14f}")
 
-        # Store Contribution and Estimate Error
-        # TODO accumulated might not be necessary
+        # Estimate error and store contribution
+        self.Estimated_Error = np.maximum(
+            np.absolute(self.Accumulated_SF_F_r_lm_H[ll, mm]-self.SF_F_r_lm_H[ll,mm]),
+            np.absolute(self.Accumulated_SF_F_r_lm_I[ll, mm]-self.SF_F_r_lm_I[ll,mm]),
+        )
+
         self.Accumulated_SF_F_r_lm_H[ll, mm] = self.SF_F_r_lm_H[ll, mm]
         self.Accumulated_SF_F_r_lm_I[ll, mm] = self.SF_F_r_lm_I[ll, mm]
-
-        self.Estimated_Error = np.maximum(
-            np.absolute(self.Accumulated_SF_F_r_lm_H[ll, mm]),
-            np.absolute(self.Accumulated_SF_F_r_lm_I[ll, mm]),
-        )
 
 
     def __del__(self):
@@ -380,7 +377,6 @@ class Physical_Quantities:
 
     class TransitionFunction:
         """Class containing the data for the transition function used in the Hyperboloidal Compactification"""
-
 
         def __init__(self):
             self.s = 0.0

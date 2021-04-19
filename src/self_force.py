@@ -63,7 +63,7 @@ def main(SFdf, resfilename):
 
     # Final Time after Computations
     end_time = time.time()
-    logging.info(f"Execution Time: {end_time - start_time} seconds")
+    logging.info("Execution Time: %f seconds", end_time - start_time)
 
     fred_goodbye()
 
@@ -72,6 +72,7 @@ def main(SFdf, resfilename):
 
 
 def main_run(SFdf, run, resfilename):
+    """Perform computation for given run number"""
     # Set Clock to measure the Computational Time
     run_start_time = time.time()
 
@@ -80,12 +81,8 @@ def main_run(SFdf, run, resfilename):
 
     # Setting up Physical Quantities
     PP = Physical_Quantities(SFdf, run)
-    logging.info(f"FRED RUN {run}: Class Physical Quantities Created")
+    logging.info("FRED RUN %d: Class Physical Quantities Created", run)
     show_parameters(PP, run)  # Show parameters of the Run
-
-    # Setting up the Grids and Grid-related Quantities
-    # RM CG = Computational_Grid(SFdf, run)
-    # RM print(f'FRED RUN {run}: Class Computational Grid Created')
 
     # Projecting the geodesic into the Particle Domains (from Horizon and to Infinity)
     project_geodesic(PP, run)
@@ -93,7 +90,7 @@ def main_run(SFdf, run, resfilename):
     # Computation of the Singular Part of the Self-Force:
     singular_part(PP, run)
 
-    # NOTE: Big Loop starts Here!
+    # NOTE: Big Loop starts Here
     # Computing ell-Modes
     for ll in range(0, PP.ell_max + 1):  # Harmonic Number l
         for mm in range(0, ll + 1):  # Harmonic Number m
@@ -107,9 +104,17 @@ def main_run(SFdf, run, resfilename):
             nf = 0  # Fourier Mode Number
             while nf <= PP.N_Fourier and n_estimated_error > PP.Mode_accuracy:
                 do_mode(ll, mm, nf, PP, run)
-                # Increasing the Fourier Mode Counter
-                nf += 1
+
+                nf += 1  # Increasing the Fourier Mode Counter
                 n_estimated_error = np.amax(PP.Estimated_Error)
+                logging.info(
+                    "FRED RUN %d: Mode (l,m,n) = (%d, %d, %02d) Computed (error=%.2e)",
+                    run,
+                    ll,
+                    mm,
+                    nf,
+                    n_estimated_error,
+                )
 
             # Complete m-Mode Computation and add contribution to l-Mode
             PP.complete_m_mode(ll, mm)
@@ -132,27 +137,25 @@ def do_mode(ll, mm, nf, PP, run):
     omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
 
     compute_mode(ll, omega_mn, PP)
-    logging.info(f"FRED RUN {run}: Mode (l,m,n) = ({ll},{mm},{nf}) Computed")
 
     PP.rescale_mode(ll, mm, nf)
 
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:
         do_mode(ll, mm, -nf, PP, run)
-    return
 
 
 # ---------------------------------------------------------------------
 
 
 def project_geodesic(PP, run):
-    """Projecting the geodesic into the Particle Domains (from Horizon and to Infinity)"""
+    """Project the geodesic into the Particle Domains (from Horizon to Infinity)"""
     PP.t_p[0] = PP.t_p_f[0]
     PP.phi_p[0] = PP.phi_p_f[0]
 
-    for ii in range(1, PP.N_OD):
+    for i in range(1, PP.N_OD):
         ntime = 0
-        r_goal = PP.r_p[ii]
+        r_goal = PP.r_p[i]
 
         error0 = PP.r_apo - PP.r_peri
         for nt in range(0, PP.N_time + 1):
@@ -171,10 +174,11 @@ def project_geodesic(PP, run):
             method="bounded",
             options={"xatol": 1e-15, "maxiter": 50000000000},
         )
+
         Xv = res.x
 
-        PP.t_p[ii] = t_p_at_X(Xv, PP)
-        PP.phi_p[ii] = phi_p_at_X(Xv, PP)
+        PP.t_p[i] = t_p_at_X(Xv, PP)
+        PP.phi_p[i] = phi_p_at_X(Xv, PP)
 
     PP.t_p[PP.N_OD] = PP.t_p_f[PP.N_time]
     PP.phi_p[PP.N_OD] = PP.phi_p_f[PP.N_time]
@@ -182,7 +186,8 @@ def project_geodesic(PP, run):
     PP.rs_p = PP.r_p - 2.0 * np.log(0.5 * (PP.r_p) - 1.0)
 
     logging.info(
-        f"FRED RUN {run}: Projection of the geodesic onto the Radial Spatial Domain Done"
+        "FRED RUN %d: Projection of the geodesic onto the Radial Spatial Domain Done",
+        run,
     )
 
 
@@ -196,7 +201,6 @@ def singular_part(PP, run):
         # Radial Location of the Particle:
         chi_p_now = PP.chi_p[ns]
         r_p_now = PP.r_p[ns]
-        phi_p_now = PP.phi_p[ns]  # TODO check if needed
 
         # Schwarzschild Metric Function f at tbe Particle Location:
         f_p = 1.0 - 2.0 / r_p_now
@@ -208,6 +212,7 @@ def singular_part(PP, run):
         q5 = q3 * (q1 ** 2) / (q4 * PP.p_orbit)
 
         chi_dot = q5 * (np.sqrt(PP.p_orbit - 4.0 - 2.0 * q1)) / (PP.p_orbit)
+
         dr_p_now_dtau = (
             (PP.Ep)
             * (r_p_now ** 2)
@@ -259,7 +264,7 @@ def singular_part(PP, run):
                 / (r_p_now ** 2)
             )
 
-    logging.info(f"FRED RUN {run}: Singular Part of the Self-Force Computed")
+    logging.info("FRED RUN %d: Singular Part of the Self-Force Computed", run)
 
 
 # ---------------------------------------------------------------------
@@ -282,23 +287,19 @@ def run_prints(PP, run, resfilename, run_start_time):
     print("\n\nResults for the l-Components of the Bare Self-Force at time t = ", PP.t_p[ns])
     for ll in range(0, PP.ell_max + 1):
         print("l=", ll, " FF- =", np.real(PP.SF_F_r_l_H[ll, ns]), " FF+ =", np.real(PP.SF_F_r_l_I[ll, ns]),
-                " FS- =", np.real(PP.SF_S_r_l_H[ll, ns]), " FS+ =", np.real(PP.SF_S_r_l_I[ll, ns]),
-                " FR- =", np.real(PP.SF_R_r_l_H[ll, ns]), " FR+ =", np.real(PP.SF_R_r_l_I[ll, ns]),
+            " FS- =", np.real(PP.SF_S_r_l_H[ll, ns]), " FS+ =", np.real(PP.SF_S_r_l_I[ll, ns]),
+            " FR- =", np.real(PP.SF_R_r_l_H[ll, ns]), " FR+ =", np.real(PP.SF_R_r_l_I[ll, ns]),
         )
 
-    # # Printing in the Computer Screen the Radial Component of the Regular Self-Force at each Time:
-    # for ns in range(0, PP.N_space+1):
-    #     print(PP.t_p_s[ns], PP.SF_r_H[ns], PP.SF_r_I[ns])
-
     # Total number of (l m)-Modes
-    Number_modes = (PP.ell_max + 1) * (PP.ell_max + 2) / 2
+    number_modes = (PP.ell_max + 1) * (PP.ell_max + 2) / 2
 
     # Saving the results of the Computation into a File:
     with open(resfilename, "a") as resultsfile:
         resultsfile.write(f"# RUN NUMBER:  {run}\n")
         resultsfile.write("# RUN INFO:\n")
         resultsfile.write(f"#   Maximum Harmonic Number:                       ell = {PP.ell_max}\n")
-        resultsfile.write(f"#   Number of Modes to be computed:            N_modes = {Number_modes}\n")
+        resultsfile.write(f"#   Number of Modes to be computed:            N_modes = {number_modes}\n")
         resultsfile.write(f"#   Number of Collocation Points per Domain:         N = {2*PP.N_OD+1}\n")
         resultsfile.write(f"#   Orbital Eccentricity:                            e = {PP.e_orbit}\n")
         resultsfile.write(f"#   Orbital Semilatus Rectum:                        p = {PP.p_orbit}\n")
@@ -335,6 +336,6 @@ if __name__ == "__main__":
     logging.info("julia imports done")
     # ------------------------------------------------------
     setup_time = time.time()
-    logging.info(f"Setup Time: {setup_time - start_time} seconds")
+    logging.info("Setup Time: %d seconds", setup_time - start_time)
 
     main(SFdf, resfilename)
