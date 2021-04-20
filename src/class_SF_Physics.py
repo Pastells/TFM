@@ -34,7 +34,7 @@ class Physical_Quantities:
         self.N_OD = DF.N_OD[self.run]
         self.N_ID = DF.N_ID[self.run]
         self.N_time = DF.N_time[self.run]
-        self.N_Fourier = DF.N_Fourier[self.run]
+        self.N_Fourier = int(DF.N_Fourier[self.run])
 
         self.Mode_accuracy = DF.Mode_accuracy[self.run]
         self.BC_at_particle = DF.BC_at_particle[self.run]
@@ -317,13 +317,6 @@ class Physical_Quantities:
         NOTE: This why the index goes form 0 to N_space instead of from 0 to N_time"""
 
         indices = (ll, mm, nf + self.N_Fourier)
-
-        # Store computed modes from compute_mode
-        self.R_H[indices] = self.single_R_HOD
-        self.R_I[indices] = self.single_R_IOD
-        self.Q_H[indices] = self.single_Q_HOD
-        self.Q_I[indices] = self.single_Q_IOD
-
 
         # Particle Location (rho/rstar and r Coordinates)
         rp = self.r_p

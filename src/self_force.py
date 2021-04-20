@@ -134,9 +134,15 @@ def do_mode(ll, mm, nf, PP, run):
     [REMEMBER: Psi is the scalar field and Phi its radial (tortoise) derivative]"""
     # TODO change name of function
 
-    omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
+    compute_mode(ll, mm, nf, PP)
 
-    compute_mode(ll, omega_mn, PP)
+    indices = (ll, mm, nf + PP.N_Fourier)
+
+    # Store computed modes from compute_mode
+    PP.R_H[indices] = PP.single_R_HOD
+    PP.R_I[indices] = PP.single_R_IOD
+    PP.Q_H[indices] = PP.single_Q_HOD
+    PP.Q_I[indices] = PP.single_Q_IOD
 
     PP.rescale_mode(ll, mm, nf)
 

@@ -422,22 +422,19 @@ function RHS_ID(u, p, t)
 end
 
 
-function compute_mode(ll, omega_mn, PP, method=TRBDF2())
+function compute_mode(ll, mm, nf, PP, method=TRBDF2())
     # create parameters array for solver
-    p = [ll,omega_mn,PP]
+    omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
+    p = @SVector [ll,omega_mn,PP]
 
     # HD
     # print("HD")
     u0 = @SVector [1, 0, 0, -p[2]]
     tspan = (PP.rho_H_plus, PP.rho_peri)
     prob = ODEProblem(RHS_HD,u0,tspan,p)
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HD)
-
-    u_matrix =  hcat(sol.u...)'
+    # save only last point
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_peri)
     lambda_minus = last(sol.u)[1]
-    u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
-    PP.single_R_HD = u_matrix[:,1] + 1im * u_matrix[:,2]
-    PP.single_Q_HD = u_matrix[:,3] + 1im * u_matrix[:,4]
 
     # HOD
     # print("HOD")
@@ -449,6 +446,7 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
 
     u_matrix =  hcat(sol.u...)'
     u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
+
     PP.single_R_HOD = u_matrix[:,1] + 1im * u_matrix[:,2]
     PP.single_Q_HOD = u_matrix[:,3] + 1im * u_matrix[:,4]
 
@@ -458,14 +456,10 @@ function compute_mode(ll, omega_mn, PP, method=TRBDF2())
     tspan = (-PP.rho_I,-PP.rho_apo)
     prob = ODEProblem(RHS_ID,u0,tspan,p)
     PP.rho_ID = -PP.rho_ID # t -> -t
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_ID)
+    # save only last point
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_apo)
     PP.rho_ID = -PP.rho_ID # -t -> t
-
-    u_matrix =  hcat(sol.u...)'
     lambda_plus = last(sol.u)[1]
-    u_matrix = u_matrix/lambda_plus  # λ⁺ = 1
-    PP.single_R_ID = u_matrix[:,1] + 1im * u_matrix[:,2]
-    PP.single_Q_ID = u_matrix[:,3] + 1im * u_matrix[:,4]
 
     # IOD (backwards)
     # print("IOD")
