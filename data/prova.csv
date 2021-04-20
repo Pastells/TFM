@@ -1,2 +1,2 @@
 Max_ell,N_HD,N_OD,N_ID,N_time,N_Fourier,field_spin,mass_ratio,particle_charge,e_orbit,p_orbit,rho_H,rho_HC,rho_HS,rho_IS,rho_IC,rho_I,q_transition,s_transition,Mode_accuracy,BC_at_particle
-5,1000,250,1000,10,20,0.0,0.01,1.0,0.3,7.0,-20.0,-10.0,0.0,150.0,200.0,250.0,1.30,1.50,1.0e-8,R
+5,100,250,100,10,40,0.0,0.01,1.0,0.3,7.0,-20.0,-10.0,0.0,150.0,200.0,250.0,1.30,1.50,1.0e-8,R
