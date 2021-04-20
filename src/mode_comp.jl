@@ -1,3 +1,4 @@
+using FLoops
 using StaticArrays
 using OrdinaryDiffEq
 # using Printf
@@ -477,3 +478,33 @@ function compute_mode(ll, mm, nf, PP, method=TRBDF2())
     PP.single_Q_IOD = u_matrix[:,3] + 1im * u_matrix[:,4]
     return
 end
+
+function loops()
+    @floop ThreadedEx() for ll in range(0, PP.ell_max + 1)  # Harmonic Number l
+        for mm in range(0, ll + 1)  # Harmonic Number m
+
+            # Check whether ell+m is odd (contribution is zero, so it can be skipped)
+            if (ll + mm) % 2 == 1
+                continue
+            end
+
+            # Computing Fourier Modes (n-Modes):
+            n_estimated_error = 10.0 * PP.Mode_accuracy
+            nf = 0  # Fourier Mode Number
+            while nf <= PP.N_Fourier and n_estimated_error > PP.Mode_accuracy
+
+                # do_mode(ll, mm, nf, PP, run)
+
+                nf += 1  # Increasing the Fourier Mode Counter
+                n_estimated_error = np.amax(PP.Estimated_Error)
+
+                # Complete m-Mode Computation and add contribution to l-Mode
+                PP.complete_m_mode(ll, mm)
+
+                # After having finished the Computation of an l-Mode we need to substract the Contribution from the Singular field:
+                PP.complete_l_mode(ll)
+            end # while
+        end # mm
+    end # ll
+
+end # function
