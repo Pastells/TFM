@@ -423,7 +423,14 @@ function RHS_ID(u, p, t)
 end
 
 
-function compute_mode(ll, mm, nf, PP, method=TRBDF2())
+function compute_mode(ll, mm, nf, PP, addresses, method=TRBDF2())
+    # Convert numpy arrays for julia to save to its addresses
+    addr_RH, addr_QH, addr_RI, addr_QI = addresses
+    R_H = unsafe_wrap(Array{Complex{Float64}}, Ptr{Complex{Float64}}(addr_RH), PP.N_OD+1)
+    Q_H = unsafe_wrap(Array{Complex{Float64}}, Ptr{Complex{Float64}}(addr_QH), PP.N_OD+1)
+    R_I = unsafe_wrap(Array{Complex{Float64}}, Ptr{Complex{Float64}}(addr_RI), PP.N_OD+1)
+    Q_I = unsafe_wrap(Array{Complex{Float64}}, Ptr{Complex{Float64}}(addr_QI), PP.N_OD+1)
+
     # create parameters array for solver
     omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
     p = @SVector [ll,omega_mn,PP]
@@ -445,11 +452,14 @@ function compute_mode(ll, mm, nf, PP, method=TRBDF2())
     prob = ODEProblem(RHS_HOD,u0,tspan,p)
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD)
 
-    u_matrix =  hcat(sol.u...)'
-    u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
+    u_H =  hcat(sol.u...)'
+    u_H = u_H/lambda_minus  # λ⁻ = 1
 
-    PP.single_R_HOD = u_matrix[:,1] + 1im * u_matrix[:,2]
-    PP.single_Q_HOD = u_matrix[:,3] + 1im * u_matrix[:,4]
+    R_H[ll+1, mm+1, nf+1+PP.N_Fourier] = u_H[:,1] + 1im * u_H[:,2]
+    Q_H[ll+1, mm+1, nf+1+PP.N_Fourier] = u_H[:,3] + 1im * u_H[:,4]
+
+    println()
+    println(R_H[ll+1, mm+1, nf+1+PP.N_Fourier])
 
     # ID (backwards)
     # print("ID")
@@ -472,10 +482,11 @@ function compute_mode(ll, mm, nf, PP, method=TRBDF2())
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_IOD)
     PP.rho_IOD = -PP.rho_IOD # -t -> t
 
-    u_matrix =  hcat(sol.u...)'
-    u_matrix = u_matrix/lambda_plus  # λ⁺ = 1
-    PP.single_R_IOD = u_matrix[:,1] + 1im * u_matrix[:,2]
-    PP.single_Q_IOD = u_matrix[:,3] + 1im * u_matrix[:,4]
+    u_I =  hcat(sol.u...)'
+    u_I = u_I/lambda_plus  # λ⁺ = 1
+
+    R_I[ll+1, mm+1, nf+1+PP.N_Fourier] = u_I[:,1] + 1im * u_I[:,2]
+    Q_I[ll+1, mm+1, nf+1+PP.N_Fourier] = u_I[:,3] + 1im * u_I[:,4]
     return
 end
 
@@ -491,7 +502,7 @@ function loops()
             # Computing Fourier Modes (n-Modes):
             n_estimated_error = 10.0 * PP.Mode_accuracy
             nf = 0  # Fourier Mode Number
-            while nf <= PP.N_Fourier and n_estimated_error > PP.Mode_accuracy
+            while nf <= PP.N_Fourier && n_estimated_error > PP.Mode_accuracy
 
                 # do_mode(ll, mm, nf, PP, run)
 

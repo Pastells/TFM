@@ -134,15 +134,24 @@ def do_mode(ll, mm, nf, PP, run):
     [REMEMBER: Psi is the scalar field and Phi its radial (tortoise) derivative]"""
     # TODO change name of function
 
-    compute_mode(ll, mm, nf, PP)
-
     indices = (ll, mm, nf + PP.N_Fourier)
+    addresses = [
+        PP.R_H.ctypes.data,
+        PP.Q_H.ctypes.data,
+        PP.R_I.ctypes.data,
+        PP.Q_I.ctypes.data,
+    ]
+
+    compute_mode(ll, mm, nf, PP, addresses)
+
+    print(PP.R_H[indices])
+    exit()
 
     # Store computed modes from compute_mode
-    PP.R_H[indices] = PP.single_R_HOD
-    PP.R_I[indices] = PP.single_R_IOD
-    PP.Q_H[indices] = PP.single_Q_HOD
-    PP.Q_I[indices] = PP.single_Q_IOD
+    PP.R_H[indices] = u_H[:, 0] + 1j * u_H[:, 1]
+    PP.R_I[indices] = u_I[:, 0] + 1j * u_I[:, 1]
+    PP.Q_H[indices] = u_H[:, 2] + 1j * u_H[:, 3]
+    PP.Q_I[indices] = u_I[:, 2] + 1j * u_I[:, 3]
 
     PP.rescale_mode(ll, mm, nf)
 
