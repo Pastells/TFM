@@ -326,15 +326,10 @@ if __name__ == "__main__":
     SFdf, resfilename = init()
 
     # --- julia imports ---
-    """
-    from julia.api import LibJulia
-    api = LibJulia.load()
-    api.sysimage = "sysimage2/ODEs.so"
-    api.init_julia()
-    """
     import julia
 
-    jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage/ODEs.so")
+    jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="ODEs.so")
+    # jl = julia.Julia(compiled_modules=False, depwarn=True)
     from julia import Main
 
     Main.include("src/mode_comp.jl")
