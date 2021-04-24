@@ -13,7 +13,6 @@ include("./hyperboloidal_compactification_tanh.jl")
 # -----------------------------------------------
 
 function regge_wheeler_potential(rstar, ll)
-
     cb = ll * (ll + 1)
     xstar = 0.5 * rstar - 1.0
     xsch = schw.r_tortoise_to_x_schwarzschild(rstar)
@@ -28,11 +27,10 @@ end
 
 # -----------------------------------------------
 
+"""ODE system that determines the solution to the Master Equation in the Horizon Domain
+NOTE: This is ONLY for the Zero Frequency Modes
+"""
 function RHS_HD_zero_freq(du, u, p, t)
-    #=This function defines the form of the ODE system that determine the solution to the Master Equation
-    It returns the Right-Hand-Side (RHS) of the ODEs
-    NOTE: This is ONLY for the Horizon Domain
-    NOTE: This is ONLY for the Zero Frequency Modes=#
 
     ll, PP = p
     rho = t
@@ -103,9 +101,8 @@ function RHS_HD_zero_freq(du, u, p, t)
 
 end
 
+"""ODE system that determines the solution to the Master Equation in the Horizon Domain"""
 function RHS_HD(u, p, t)
-    #=This function defines the form of the ODE system that determine the solution to the Master Equation
-    NOTE: This is ONLY for the Horizon Domain=#
 
     ll, w_mn, PP = p
     rho = t
@@ -201,10 +198,8 @@ function RHS_HD(u, p, t)
 end
 
 
+"""ODE system that determines the solution to the Master Equation in the Horizon Orbital Domain"""
 function RHS_HOD(u, p, t)
-    #=This function defines the form of the ODE system that determine the solution to the Master Equation
-    NOTE: This is ONLY for the Orbital Domain (Horizon or Infinity)=#
-
     ll, w_mn = p
     rho = t
     re_R, im_R, re_Q, im_Q = u
@@ -219,11 +214,10 @@ function RHS_HOD(u, p, t)
     @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
-function RHS_IOD(u, p, t)
-    #=This function defines the form of the ODE system that determine the solution to the Master Equation
-    NOTE: This is ONLY for the Orbital Domain (Horizon or Infinity)
-    Defined backward, e.i. rho -> -rho, so can be integrated from right to left=#
 
+"""ODE system that determines the solution to the Master Equation in the Infinity Orbital Domain
+Defined backward, e.i. rho -> -rho, so can be integrated from right to left"""
+function RHS_IOD(u, p, t)
     ll, w_mn = p
     rho = t
     re_R, im_R, re_Q, im_Q = u
@@ -238,8 +232,9 @@ function RHS_IOD(u, p, t)
     @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
+"""ODE system that determines the solution to the Master Equation in the Infinity Domain
+Defined backward, e.i. rho -> -rho, so can be integrated from right to left"""
 function RHS_ID(u, p, t)
-
     ll, w_mn, PP = p
     rho = t
     re_R, im_R, re_Q, im_Q = u
@@ -422,8 +417,8 @@ function RHS_ID(u, p, t)
 end
 
 
+"""Create parameters array for solver."""
 function compute_mode(ll, mm, nf, PP, method=TRBDF2())
-    # create parameters array for solver
     omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
     p = @SVector [ll,omega_mn,PP]
 

@@ -1,25 +1,27 @@
+"""
+    f_transition(sigma, TF)
+Transition Function (rho) given a value of sigma, s, and q.
+
+```
+            pi     rho - R
+sigma  =  ---- . ---------
+            2       C  - R
+```
+
+where R is the rho value that denotes the beginning of the transition region
+and C is the rho value for the end of this region.  Moreover, s and q are
+parameters that characterize the shape of the transition function, and they
+are encapsulated in the object TF.
+
+In terms of these parameters, the transition function is given by:
+
+```                 _                    _                 2     _     _
+                1  |             /  s   |                 q       | \   |
+F(sigma;s,q) = --- |  1  +  tanh|  ---- | tg(sigma) - ----------  |  |  |
+                2  |_            \  pi  |_             tg(sigma) _| /  _|
+```
+"""
 function f_transition(sigma, TF)
-    #=
-    The function f_transition = Transition_function(rho) provides the value
-    of the Transition Function given a value of sigma, s, and q. The definion of
-    sigma is:
-
-                pi     rho - R
-    sigma  =  ---- . ---------
-                2       C  - R
-
-    where R is the rho value that denotes the beginning of the transition region
-    and C is the rho value for the end of this region.  Moreover, s and q are
-    parameters that characterize the shape of the transition function, and they
-    are encapsulated in the object TF.
-
-    In terms of these parameters, the transition function is given by:
-
-                        _                    _                 2     _     _
-                    1  |             /  s   |                 q       | \   |
-    F(sigma;s,q) = --- |  1  +  tanh|  ---- | tg(sigma) - ----------  |  |  |
-                    2  |_            \  pi  |_             tg(sigma) _| /  _|
-    =#
 
     tg_sigma = tan(sigma)
 
@@ -32,21 +34,21 @@ function f_transition(sigma, TF)
 end
 
 
+"""
+    f_transition_1st(f0, sigma, TF)
+First derivative (with respect to sigma!) of the Transition
+The parameters s and q characterize the shape of the transition function
+
+In terms of these parameters, the first derivative of the Transition Function with respect to
+sigma is given by:
+```                                    _                              _
+    dF         8s       F (1 - F)     |           2          2         |
+ --------  =  ---- . ---------------  |  1  +  ( q  - 1 ) cos (sigma)  |
+  dsigma       pi     sin^2(2 sigma)  |_                              _|
+```
+
+"""
 function f_transition_1st(f0, sigma, TF)
-    #=
-    This function provides the value of the first derivative (with respect to sigma!) of the Transition
-    Function given a value of the Transition Function itself, and a value of sigma, s, and q.
-    The definition of sigma can be seen in the computation of the Transition Function above.
-    The parameters s and q characterize the shape of the transition function
-
-    In terms of these parameters, the first derivative of the Transition Function with respect to
-    sigma is given by:
-                                           _                              _
-        dF         8s       F (1 - F)     |           2          2         |
-     --------  =  ---- . ---------------  |  1  +  ( q  - 1 ) cos (sigma)  |
-      dsigma       pi     sin^2(2 sigma)  |_                              _|
-
-    =#
 
     factor1 = 8.0 * TF.s / pi
 
@@ -60,22 +62,18 @@ function f_transition_1st(f0, sigma, TF)
 end
 
 
+"""
+    f_transition_2nd(f0, sigma, TF)
+Second derivative (with respect to sigma!) of the Transition Function
+The parameters s and q characterize the shape of the transition function
+
+                                          _                                           2                                                   _
+   d^2 F         32s       F (1 - F)     |   2s          /        2          2       \                    /   4           2    4       \   |
+ ----------  =  ----- . ---------------  |  ---- (1-2F) | 1 -  ( q  - 1 ) cos (sigma) |  +  sin(2 sigma) | sin (sigma) - q  cos (sigma) |  |
+  dsigma^2        pi     sin^4(2 sigma)  |_  pi          \                           /                    \                            /  _|
+
+"""
 function f_transition_2nd(f0, sigma, TF)
-    #=
-    This function provides the value of the second derivative (with respect to sigma!) of the Transition
-    Function given a value of the Transition Function itself, and a value of sigma, s, and q.
-    The definition of sigma can be seen in the computation of the Transition Function above.
-    The parameters s and q characterize the shape of the transition function
-
-    In terms of these parameters, the second derivative of the Transition Function with respect to
-    sigma is given by:
-
-                                              _                                           2                                                   _
-       d^2 F         32s       F (1 - F)     |   2s          /        2          2       \                    /   4           2    4       \   |
-     ----------  =  ----- . ---------------  |  ---- (1-2F) | 1 -  ( q  - 1 ) cos (sigma) |  +  sin(2 sigma) | sin (sigma) - q  cos (sigma) |  |
-      dsigma^2        pi     sin^4(2 sigma)  |_  pi          \                           /                    \                            /  _|
-
-    =#
 
     sin_2sigma = sin(2.0 * sigma)
 
