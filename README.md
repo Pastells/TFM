@@ -7,7 +7,7 @@ Manual installation:
 - Python: numpy, scipy, pandas, julia\
   `pip install numpy scipy pandas julia`
 
-- Julia: with PyCall, OrdinaryDiffEq, StaticArrays\
+- Julia: with PyCall, OrdinaryDiffEq, StaticArrays, Markdown\
   `julia -e 'using Pkg; Pkg.add("PyCall"); Pkg.add("OrdinaryDiffEq"); Pkg.add("StaticArrays")'`
 
 - OrdinaryDiffEq, StaticArrays are found precompiled in sysimage/ODEs.so\

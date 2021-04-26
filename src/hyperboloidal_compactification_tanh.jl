@@ -1,4 +1,6 @@
-"""
+using Markdown
+
+doc"""
     f_transition(sigma, TF)
 Transition Function (rho) given a value of sigma, s, and q.
 
@@ -34,7 +36,7 @@ function f_transition(sigma, TF)
 end
 
 
-"""
+doc"""
     f_transition_1st(f0, sigma, TF)
 First derivative (with respect to sigma!) of the Transition
 The parameters s and q characterize the shape of the transition function
@@ -62,7 +64,7 @@ function f_transition_1st(f0, sigma, TF)
 end
 
 
-"""
+doc"""
     f_transition_2nd(f0, sigma, TF)
 Second derivative (with respect to sigma!) of the Transition Function
 The parameters s and q characterize the shape of the transition function
