@@ -70,11 +70,11 @@ class Physical_Quantities:
         # self.rho_HD = np.linspace(self.rho_H_plus, self.rho_HC, self.N_HD + 1)
         # self.rho_HTD = np.linspace(self.rho_HC, self.rho_HS, self.N_HD + 1)
         # self.rho_HRD = np.linspace(self.rho_HS, self.rho_peri, self.N_HD + 1)
-        self.rho_HD = np.linspace(self.rho_H_plus, self.rho_peri, self.N_HD + 1)
+        # self.rho_HD = np.linspace(self.rho_H_plus, self.rho_peri, self.N_HD + 1)
         self.rho_HOD = np.linspace(self.rho_peri, self.rho_apo, _N_OD1)
 
         self.rho_IOD = np.linspace(self.rho_apo, self.rho_peri, _N_OD1)
-        self.rho_ID = np.linspace(self.rho_I, self.rho_apo, self.N_ID + 1)
+        # self.rho_ID = np.linspace(self.rho_I, self.rho_apo, self.N_ID + 1)
 
         # HYPERBOLOIDAL COMPACTIFICATION: Transition Function Parameters
         # Transition Function/Compactification Parameters
@@ -125,19 +125,19 @@ class Physical_Quantities:
 
         # Arrays to store the values of R_lmn and Q_lmn [Bare (full) scalar field] at each domain (2 variables x 6 domains = 12 arrays)
         # NOTE: In this version of the Code these Arrays are computed via ODE Integration:
-        self.single_R_HD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        self.single_Q_HD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        self.single_R_HTD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        self.single_Q_HTD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        self.single_R_HRD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        self.single_Q_HRD = np.zeros(self.N_HD + 1, dtype=np.complex128)
+        # self.single_R_HD = np.zeros(self.N_HD + 1, dtype=np.complex128)
+        # self.single_Q_HD = np.zeros(self.N_HD + 1, dtype=np.complex128)
+        # self.single_R_HTD = np.zeros(self.N_HD + 1, dtype=np.complex128)
+        # self.single_Q_HTD = np.zeros(self.N_HD + 1, dtype=np.complex128)
+        # self.single_R_HRD = np.zeros(self.N_HD + 1, dtype=np.complex128)
+        # self.single_Q_HRD = np.zeros(self.N_HD + 1, dtype=np.complex128)
         self.single_R_HOD = np.zeros(_N_OD1, dtype=np.complex128)
         self.single_Q_HOD = np.zeros(_N_OD1, dtype=np.complex128)
 
         self.single_R_IOD = np.zeros(_N_OD1, dtype=np.complex128)
         self.single_Q_IOD = np.zeros(_N_OD1, dtype=np.complex128)
-        self.single_R_ID = np.zeros(self.N_ID + 1, dtype=np.complex128)
-        self.single_Q_ID = np.zeros(self.N_ID + 1, dtype=np.complex128)
+        # self.single_R_ID = np.zeros(self.N_ID + 1, dtype=np.complex128)
+        # self.single_Q_ID = np.zeros(self.N_ID + 1, dtype=np.complex128)
 
         # Arrays for the computation of the Bare (full) Self-Force at the Particle Location:
         # The values of R_lmn and Q_lmn at the Particle location as evaluated at the two domains that contain the Particle
