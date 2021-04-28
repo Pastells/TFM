@@ -450,10 +450,10 @@ function compute_mode(ll, mm, nf, PP, method=TRBDF2())
     u0 = @SVector [1,0,0,p[2]]
     tspan = (-PP.rho_I,-PP.rho_apo)
     prob = ODEProblem(RHS_ID,u0,tspan,p)
-    PP.rho_ID = -PP.rho_ID # t -> -t
+    PP.rho_apo = -PP.rho_apo # t -> -t
     # save only last point
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_apo)
-    PP.rho_ID = -PP.rho_ID # -t -> t
+    PP.rho_apo = -PP.rho_apo # -t -> t
     lambda_plus = last(sol.u)[1]
 
     # IOD (backwards)

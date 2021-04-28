@@ -134,9 +134,8 @@ def show_parameters(PP, run):
     logging.info("------------------------------------------------------------")
     logging.info("-----------  PARAMETERS FOR RUN # %d -----------------------", run)
     logging.info("Max_ell                = %d", PP.ell_max)
-    logging.info("N_HD                   = %d", PP.N_HD)
     logging.info("N_OD                   = %d", PP.N_OD)
-    logging.info("N_ID                   = %d", PP.N_ID)
+    logging.info("N_time                 = %d", PP.N_time)
     logging.info("N_Fourier              = %d", PP.N_Fourier)
     logging.info("field_spin             = %f", PP.field_spin)
     logging.info("mass_ratio             = %f", PP.mass_ratio)
@@ -169,21 +168,17 @@ def fred_goodbye():
     quit()
 
 
-def plotall(CGC, PP):
+def plotall(PP):
     """This functions plots the whole Minus and Plus Sectors separately"""
 
     # PLOT of R_H versus r_H
-    plt.plot(CGC.r_H, PP.single_R_H, label="H Interval")
-    plt.plot(CGC.r_H_tr, PP.single_R_H_tr, label="H_tr Interval")
-    plt.plot(CGC.r_H_pv, PP.single_R_H_pv, label="H_pv Internal")
-    plt.plot(CGC.r_H_pp, PP.single_R_H_pp, label="H_pp Interval")
-
+    plt.plot(PP.rho_HOD, PP.single_R_HOD, label="H Interval")
     plt.xlabel("r_H")
     plt.ylabel("R_H")
-
     plt.title("FRED Plot of R_H(r_H)")
     plt.legend()
     plt.show()
+    return
 
     # PLOT of R_H versus rs_H
     plt.plot(CGC.rs_H, PP.single_R_H, label="H Interval")
@@ -325,6 +320,7 @@ def logging_func(filename, log_print):
     """Create logger, print all logging info if log_print == True"""
     logfilename = filename[:-4] + ".log"
     format_str = "[%(asctime)s - %(levelname)s] %(message)s"
+    format_str_rel = "[%(relativeCreated)d - %(levelname)s] %(message)s"
 
     logging.basicConfig(
         filename=logfilename,
@@ -339,7 +335,7 @@ def logging_func(filename, log_print):
 
         handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(format_str, datefmt="%Y-%m-%d %H:%M:%S")
+        formatter = logging.Formatter(format_str_rel, datefmt="%Y-%m-%d %H:%M:%S")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logging.getLogger("matplotlib").setLevel(logging.WARNING)

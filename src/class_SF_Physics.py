@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from scipy.integrate import odeint
 from scipy import special
+import pickle
 from orbital_computations import (
     compute_radial_period,
     compute_azimuthal_frequency,
@@ -169,7 +170,7 @@ class Physical_Quantities:
         e2 = (self.e_orbit) ** 2
 
         self.Ep = np.sqrt(
-            ( (self.p_orbit - 2.0 - 2.0 * self.e_orbit) * (self.p_orbit - 2.0 + 2.0 * self.e_orbit))
+            ((self.p_orbit - 2.0 - 2.0 * self.e_orbit) * (self.p_orbit - 2.0 + 2.0 * self.e_orbit))
             / ((self.p_orbit) * (self.p_orbit - 3.0 - e2))
         )
         self.Lp = (self.p_orbit) / (np.sqrt(self.p_orbit - 3.0 - e2))
@@ -265,7 +266,6 @@ class Physical_Quantities:
                 else:
                     self.d_lm[ll, mm] = 0.0
 
-
     # ------------------------------------------------------------------------
     # Functions
     # ------------------------------------------------------------------------
@@ -354,19 +354,25 @@ class Physical_Quantities:
 
         # Estimate error and store contribution
         self.Estimated_Error = np.maximum(
-            np.absolute(self.Accumulated_SF_F_r_lm_H[ll, mm]-self.SF_F_r_lm_H[ll,mm]),
-            np.absolute(self.Accumulated_SF_F_r_lm_I[ll, mm]-self.SF_F_r_lm_I[ll,mm]),
+            np.absolute(self.Accumulated_SF_F_r_lm_H[ll, mm] - self.SF_F_r_lm_H[ll, mm]),
+            np.absolute(self.Accumulated_SF_F_r_lm_I[ll, mm] - self.SF_F_r_lm_I[ll, mm]),
         )
 
         self.Accumulated_SF_F_r_lm_H[ll, mm] = self.SF_F_r_lm_H[ll, mm]
         self.Accumulated_SF_F_r_lm_I[ll, mm] = self.SF_F_r_lm_I[ll, mm]
-
 
     def __del__(self):
         """Instance Removal"""
         logging.info("Physical Parameter Class deleted!")
         logging.info("FRED Code (c) 2012-2021 C.F. Sopuerta")
 
+    def save(self):
+        """Save resulting modes"""
+        logging.info("Saving results")
+
+        pickle.dump(self.R_H, open("results/R_H.pkl", "wb"))
+        pickle.dump(self.R_I, open("results/R_I.pkl", "wb"))
+        pickle.dump(self.rho_HOD, open("results/rho_HOD.pkl", "wb"))
 
     class TransitionFunction:
         """Class containing the data for the transition function used in the Hyperboloidal Compactification"""

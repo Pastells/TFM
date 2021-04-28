@@ -13,6 +13,7 @@ from Some_functions import (
     show_parameters,
     fred_goodbye,
     logging_func,
+    plotall,
 )
 from Schwarzschild import zero_of_r_p_at_X, t_p_at_X, phi_p_at_X
 
@@ -59,11 +60,12 @@ def main(SFdf, resfilename):
 
     # Starting the different Runs in the Parameter File 'data'
     for run in range(0, N_runs):
-        main_run(SFdf, run, resfilename)
+        PP = main_run(SFdf, run, resfilename)
 
     # Final Time after Computations
     end_time = time.time()
     logging.info("Execution Time: %f seconds", end_time - start_time)
+    PP.save()
 
     fred_goodbye()
 
@@ -124,6 +126,7 @@ def main_run(SFdf, run, resfilename):
 
     # Once the Computation of the Self-Force has ended we save/print the results:
     run_prints(PP, run, resfilename, run_start_time)
+    return PP
 
 
 # ---------------------------------------------------------------------
@@ -328,7 +331,7 @@ if __name__ == "__main__":
     # --- julia imports ---
     import julia
 
-    jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="ODEs.so")
+    jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage.so")
     # jl = julia.Julia(compiled_modules=False, depwarn=True)
     from julia import Main
 
