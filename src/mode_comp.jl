@@ -417,8 +417,9 @@ function RHS_ID(u, p, t)
 end
 
 
-"""Create parameters array for solver."""
-function compute_mode(ll, mm, nf, PP, method=TRBDF2())
+"""Create parameters array for solver.
+   save :: keep HD and ID modes solutions"""
+function compute_mode(ll, mm, nf, PP, method=TRBDF2(), save=false)
     omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
     p = @SVector [ll,omega_mn,PP]
 
@@ -427,8 +428,12 @@ function compute_mode(ll, mm, nf, PP, method=TRBDF2())
     u0 = @SVector [1, 0, 0, -p[2]]
     tspan = (PP.rho_H_plus, PP.rho_peri)
     prob = ODEProblem(RHS_HD,u0,tspan,p)
-    # save only last point
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_peri)
+    if save
+        sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HD)
+    else
+        # save only last point
+        sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_peri)
+    end
     lambda_minus = last(sol.u)[1]
 
     # HOD
@@ -451,8 +456,12 @@ function compute_mode(ll, mm, nf, PP, method=TRBDF2())
     tspan = (-PP.rho_I,-PP.rho_apo)
     prob = ODEProblem(RHS_ID,u0,tspan,p)
     PP.rho_apo = -PP.rho_apo # t -> -t
-    # save only last point
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_apo)
+    if save
+        sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_ID)
+    else
+        # save only last point
+        sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_apo)
+    end
     PP.rho_apo = -PP.rho_apo # -t -> t
     lambda_plus = last(sol.u)[1]
 

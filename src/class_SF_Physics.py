@@ -1,3 +1,5 @@
+import os
+import time
 import logging
 import numpy as np
 from scipy.integrate import odeint
@@ -11,12 +13,15 @@ from orbital_computations import (
 from Schwarzschild import r_schwarzschild_to_r_tortoise
 from Some_functions import Jump_Value
 
-# fmt: off
+
 class Physical_Quantities:
-    def __init__(self, DF, run):
+    # fmt: off
+    def __init__(self, DF, run, save=False):
         """Initializer / Instance Attributes"""
 
         self.run = run
+        self.save = save
+
 
         # PHYSICAL PARAMETERS OF THE RUN
         self.particle_charge = DF.particle_charge[self.run]
@@ -25,12 +30,8 @@ class Physical_Quantities:
         self.sigma_spin = 1.0 - (self.field_spin) ** 2
         self.e_orbit = DF.e_orbit[self.run]
         self.p_orbit = DF.p_orbit[self.run]
-        # RM self.chi_p_0 = DF.chi_p_ini[self.run]
-        # RM self.phi_p_0 = DF.phi_p_ini[self.run]
 
         self.ell_max = DF.Max_ell[self.run]
-        # RM self.N_Regular_Domains = DF.N_Regular_Domains[self.run]
-        # RM self.N_space = DF.N_space[self.run]
         self.N_HD = DF.N_HD[self.run]
         self.N_OD = DF.N_OD[self.run]
         self.N_ID = DF.N_ID[self.run]
@@ -40,10 +41,12 @@ class Physical_Quantities:
         self.Mode_accuracy = DF.Mode_accuracy[self.run]
         self.BC_at_particle = DF.BC_at_particle[self.run]
 
+
         # Internal variables
         _ell_max1 = self.ell_max + 1
         _N_OD1 = self.N_OD + 1
         _N_Fourier_1 = 2 * self.N_Fourier + 1
+
 
         # DOMAIN BOUNDARIES
         self.r_peri = self.p_orbit / (1.0 + self.e_orbit)
@@ -60,6 +63,7 @@ class Physical_Quantities:
         self.rho_IC = DF.rho_IC[self.run]
         self.rho_I = DF.rho_I[self.run]
 
+
         # GRIDS FOR ODE INTEGRATION:
         # NOTE: Remember we are integrating with respect to the rho Coordinate. Then, our grids use this Coordinate.
         # NOTE: Given that the ODEs present singular behaviour both at the Horizon and at Infinity we start the integration
@@ -68,20 +72,20 @@ class Physical_Quantities:
         epsilon_H = 2.8e-15
         self.rho_H_plus = self.rho_H + epsilon_H
 
-        # self.rho_HD = np.linspace(self.rho_H_plus, self.rho_HC, self.N_HD + 1)
-        # self.rho_HTD = np.linspace(self.rho_HC, self.rho_HS, self.N_HD + 1)
-        # self.rho_HRD = np.linspace(self.rho_HS, self.rho_peri, self.N_HD + 1)
-        # self.rho_HD = np.linspace(self.rho_H_plus, self.rho_peri, self.N_HD + 1)
         self.rho_HOD = np.linspace(self.rho_peri, self.rho_apo, _N_OD1)
-
         self.rho_IOD = np.linspace(self.rho_apo, self.rho_peri, _N_OD1)
-        # self.rho_ID = np.linspace(self.rho_I, self.rho_apo, self.N_ID + 1)
+
+        if self.save:
+            self.rho_HD = np.linspace(self.rho_H_plus, self.rho_HC, self.N_HD + 1)
+            self.rho_ID = np.linspace(self.rho_I, self.rho_apo, self.N_ID + 1)
+
 
         # HYPERBOLOIDAL COMPACTIFICATION: Transition Function Parameters
         # Transition Function/Compactification Parameters
         self.TF = self.TransitionFunction()
         self.TF.q = DF.q_transition[self.run]
         self.TF.s = DF.s_transition[self.run]
+
 
         # ARRAYS FOR DIFFERENT VARIABLES
         # Arrays for the Regularization Parameters and Singular part of the Self-Force:
@@ -124,21 +128,18 @@ class Physical_Quantities:
         self.SF_r_H = np.zeros(_N_OD1, dtype=np.complex128)
         self.SF_r_I = np.zeros(_N_OD1, dtype=np.complex128)
 
-        # Arrays to store the values of R_lmn and Q_lmn [Bare (full) scalar field] at each domain (2 variables x 6 domains = 12 arrays)
+        # Arrays to store the values of R_lmn and Q_lmn [Bare (full) scalar field] at each domain
         # NOTE: In this version of the Code these Arrays are computed via ODE Integration:
-        # self.single_R_HD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        # self.single_Q_HD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        # self.single_R_HTD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        # self.single_Q_HTD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        # self.single_R_HRD = np.zeros(self.N_HD + 1, dtype=np.complex128)
-        # self.single_Q_HRD = np.zeros(self.N_HD + 1, dtype=np.complex128)
         self.single_R_HOD = np.zeros(_N_OD1, dtype=np.complex128)
         self.single_Q_HOD = np.zeros(_N_OD1, dtype=np.complex128)
-
         self.single_R_IOD = np.zeros(_N_OD1, dtype=np.complex128)
         self.single_Q_IOD = np.zeros(_N_OD1, dtype=np.complex128)
-        # self.single_R_ID = np.zeros(self.N_ID + 1, dtype=np.complex128)
-        # self.single_Q_ID = np.zeros(self.N_ID + 1, dtype=np.complex128)
+
+        if self.save:
+            self.single_R_HD = np.zeros(self.N_HD + 1, dtype=np.complex128)
+            self.single_Q_HD = np.zeros(self.N_HD + 1, dtype=np.complex128)
+            self.single_R_ID = np.zeros(self.N_ID + 1, dtype=np.complex128)
+            self.single_Q_ID = np.zeros(self.N_ID + 1, dtype=np.complex128)
 
         # Arrays for the computation of the Bare (full) Self-Force at the Particle Location:
         # The values of R_lmn and Q_lmn at the Particle location as evaluated at the two domains that contain the Particle
@@ -147,16 +148,14 @@ class Physical_Quantities:
         self.Q_H = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
         self.Q_I = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
 
+        if self.save:
+            self.R_HD = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, self.N_HD + 1), dtype=np.complex128)
+            self.R_ID = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, self.N_HD + 1), dtype=np.complex128)
+            self.Q_HD = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, self.N_ID + 1), dtype=np.complex128)
+            self.Q_ID = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, self.N_ID + 1), dtype=np.complex128)
+
         # Array for the d_lm coefficients associated with the SCO's energy-momentum tensor
         self.d_lm = np.zeros((_ell_max1, _ell_max1), dtype=np.complex128)
-
-        # Array for the C_lmn coefficients (for correcting the solutions of the master
-        # equations according to the true boundary conditions at the particle location):
-        self.Cp_lmn = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
-        self.Cm_lmn = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1, _N_OD1), dtype=np.complex128)
-
-        # Arrays for the Fourier Modes of the Jumps:
-        self.J_lmn = np.zeros((_ell_max1, _ell_max1, _N_Fourier_1), dtype=np.complex128)
 
         # Computing Fundamental Periods and Frequencies of the Particle Orbital motion
         self.T_r = compute_radial_period(self.p_orbit, self.e_orbit)
@@ -287,7 +286,7 @@ class Physical_Quantities:
             * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
         )
 
-        # Add contribution to l-Mode
+        # Add contribution to l-Mode (appendix A)
         if mm == 0:
             self.SF_F_r_l_H[ll] += self.SF_F_r_lm_H[ll, mm]
             self.SF_F_r_l_I[ll] += self.SF_F_r_lm_I[ll, mm]
@@ -305,6 +304,23 @@ class Physical_Quantities:
         # Total Regular Self-Force
         self.SF_r_H = self.SF_r_H + self.SF_R_r_l_H[ll]
         self.SF_r_I = self.SF_r_I + self.SF_R_r_l_I[ll]
+
+    def store(self, indices):
+        """Save solution from compute_mode into permanent ndarray
+        indices = (ll, mm, nf + PP.N_Fourier)"""
+        print(indices)
+        print(self.single_R_HD)
+
+        self.R_H[indices] = self.single_R_HOD
+        self.R_I[indices] = self.single_R_IOD
+        self.Q_H[indices] = self.single_Q_HOD
+        self.Q_I[indices] = self.single_Q_IOD
+
+        if self.save:
+            self.R_HD[indices] = self.single_R_HD
+            self.R_ID[indices] = self.single_R_ID
+            self.Q_HD[indices] = self.single_Q_HD
+            self.Q_ID[indices] = self.single_Q_ID
 
 
     def rescale_mode(self, ll, mm, nf):
@@ -325,21 +341,21 @@ class Physical_Quantities:
         fp = 1.0 - 2.0 / rp
 
         # Value of the Jump
-        self.J_lmn[indices] = Jump_Value(ll, mm, nf, self)
+        J_lmn = Jump_Value(ll, mm, nf, self)
 
         # Computing the C_lmn Coefficients [for the Harmonic mode (ll,mm), Fourier mode 'nt', and location <=> time 'ns']
-        Wronskian_RQ = self.R_I[indices] * self.Q_H[indices] - self.R_H[indices] * self.Q_I[indices]
+        wronskian_RQ = self.R_I[indices] * self.Q_H[indices] - self.R_H[indices] * self.Q_I[indices]
 
-        self.Cm_lmn[indices] = -self.R_I[indices] * self.J_lmn[indices] / Wronskian_RQ
-        self.Cp_lmn[indices] = -self.R_H[indices] * self.J_lmn[indices] / Wronskian_RQ
+        Cm_lmn = -self.R_I[indices] * J_lmn / wronskian_RQ
+        Cp_lmn = -self.R_H[indices] * J_lmn / wronskian_RQ
 
         # Computing the Values of the Bare Field Modes (R,Q)(ll,mm,nn) at the Particle Location 'ns'
         # using the Correct Boundary Conditions: RESCALING WITH THE C_lmn COEFFICIENTS
-        self.R_H[indices] = self.Cm_lmn[indices] * self.R_H[indices]
-        self.Q_H[indices] = self.Cm_lmn[indices] * self.Q_H[indices]
+        self.R_H[indices] = Cm_lmn * self.R_H[indices]
+        self.Q_H[indices] = Cm_lmn * self.Q_H[indices]
 
-        self.R_I[indices] = self.Cp_lmn[indices] * self.R_I[indices]
-        self.Q_I[indices] = self.Cp_lmn[indices] * self.Q_I[indices]
+        self.R_I[indices] = Cp_lmn * self.R_I[indices]
+        self.Q_I[indices] = Cp_lmn * self.Q_I[indices]
 
         # Computation of the contribution of the Fourier Mode 'nf' (l m nf) to the Radial Component of the Bare (full) Self-Force
         # [NOTE: This is the contribution up to a multiplicative factor that is applied below]
@@ -361,18 +377,43 @@ class Physical_Quantities:
         self.Accumulated_SF_F_r_lm_H[ll, mm] = self.SF_F_r_lm_H[ll, mm]
         self.Accumulated_SF_F_r_lm_I[ll, mm] = self.SF_F_r_lm_I[ll, mm]
 
+    # fmt: on
+
+    def saving(self):
+        """Save resulting modes"""
+        logging.info("FRED RUN %f: Saving results", self.run)
+        if os.path.isfile("results/R_H.pkl"):
+            folder = time.strftime("results/%Y-%m-%d_%H:%M")
+            os.mkdir(folder)
+            logging.warning(
+                f"Pickle files already exist, moved into new folder {folder}"
+            )
+        else:
+            suffix = "results"
+
+        def pickle_dump(string, folder):
+            object_to_save = getattr(self, string)
+            object_name = folder + "/" + string + ".pkl"
+            pickle.dump(object_to_save, open(object_name, "wb"))
+
+        pickle_dump("R_H", suffix)
+        pickle_dump("R_I", suffix)
+        pickle_dump("Q_H", suffix)
+        pickle_dump("Q_I", suffix)
+        pickle_dump("rho_HOD", suffix)
+
+        if self.save:
+            pickle_dump("R_HD", suffix)
+            pickle_dump("R_ID", suffix)
+            pickle_dump("Q_HD", suffix)
+            pickle_dump("Q_ID", suffix)
+            pickle_dump("rho_HD", suffix)
+            pickle_dump("rho_ID", suffix)
+
     def __del__(self):
         """Instance Removal"""
         logging.info("Physical Parameter Class deleted!")
         logging.info("FRED Code (c) 2012-2021 C.F. Sopuerta")
-
-    def save(self):
-        """Save resulting modes"""
-        logging.info("Saving results")
-
-        pickle.dump(self.R_H, open("results/R_H.pkl", "wb"))
-        pickle.dump(self.R_I, open("results/R_I.pkl", "wb"))
-        pickle.dump(self.rho_HOD, open("results/rho_HOD.pkl", "wb"))
 
     class TransitionFunction:
         """Class containing the data for the transition function used in the Hyperboloidal Compactification"""
@@ -380,5 +421,3 @@ class Physical_Quantities:
         def __init__(self):
             self.s = 0.0
             self.q = 0.0
-
-# fmt: on

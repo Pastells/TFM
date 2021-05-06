@@ -1,4 +1,5 @@
 import sys
+import os
 import logging
 import numpy as np
 from scipy import special
@@ -134,7 +135,9 @@ def show_parameters(PP, run):
     logging.info("------------------------------------------------------------")
     logging.info("-----------  PARAMETERS FOR RUN # %d -----------------------", run)
     logging.info("Max_ell                = %d", PP.ell_max)
+    logging.info("N_HD                   = %d", PP.N_HD)
     logging.info("N_OD                   = %d", PP.N_OD)
+    logging.info("N_ID                   = %d", PP.N_ID)
     logging.info("N_time                 = %d", PP.N_time)
     logging.info("N_Fourier              = %d", PP.N_Fourier)
     logging.info("field_spin             = %f", PP.field_spin)
@@ -319,8 +322,11 @@ def plotseveral(arg1, *Pargs):
 def logging_func(filename, log_print):
     """Create logger, print all logging info if log_print == True"""
     logfilename = filename[:-4] + ".log"
+    # check if log file already existed
+    exists = os.path.isfile(logfilename)
+
     format_str = "[%(asctime)s - %(levelname)s] %(message)s"
-    format_str_rel = "[%(relativeCreated)d - %(levelname)s] %(message)s"
+    # format_str_rel = "[%(relativeCreated)d - %(levelname)s] %(message)s"
 
     logging.basicConfig(
         filename=logfilename,
@@ -335,7 +341,10 @@ def logging_func(filename, log_print):
 
         handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(format_str_rel, datefmt="%Y-%m-%d %H:%M:%S")
+        formatter = logging.Formatter(format_str, datefmt="%Y-%m-%d %H:%M:%S")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
+    if exists:
+        logging.warning(f"{logfilename} already exists, appending to file")

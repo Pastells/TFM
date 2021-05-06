@@ -1,12 +1,14 @@
 """FRED Code (c) 2012-2021 C.F. Sopuerta"""
 
 import time
+import os
 import logging
 import argparse
 import pandas as pd
 import numpy as np
 from scipy import special
 from scipy.optimize import minimize_scalar
+import pickle
 from class_SF_Physics import Physical_Quantities
 from Some_functions import (
     run_basic_tests,
@@ -29,29 +31,38 @@ def init():
     parser = argparse.ArgumentParser(description="FRED program")
     parser.add_argument("data", type=str, help="Input csv data file")
     parser.add_argument("-log_print", action="store_true", help="Print all log output")
+    parser.add_argument(
+        "-save",
+        action="store_true",
+        help="Save modes in whole horizon and infinite regions",
+    )
     args = parser.parse_args()
 
     # --- Read Data from Parameter File into a Pandas DataFrame [SFdf] ---
     filename = args.data
     SFdf = pd.read_csv(filename)
 
+    # logging
+    logging_func(filename, args.log_print)
+
     # Preparing Files for saving Self-Force Results
     resfilename = filename[:-4] + "_results.csv"
+    if os.path.isfile(resfilename):
+        logging.error(f"{resfilename} already exists, save with other name or remove")
+        fred_goodbye()
+
     with open(resfilename, "w") as resultsfile:
         resultsfile.write(
             f'# FRED RESULTS FILE [File opened on {time.strftime("%Y-%m-%d %H:%M")}]\n'
         )
 
-    # logging
-    logging_func(filename, args.log_print)
-
-    return SFdf, resfilename
+    return SFdf, resfilename, args.save
 
 
 # ---------------------------------------------------------------------
 
 
-def main(SFdf, resfilename):
+def main(SFdf, resfilename, save):
     """Execute main program"""
 
     start_time = time.time()  # Initialize clock
@@ -60,12 +71,12 @@ def main(SFdf, resfilename):
 
     # Starting the different Runs in the Parameter File 'data'
     for run in range(0, N_runs):
-        PP = main_run(SFdf, run, resfilename)
+        PP = main_run(SFdf, run, resfilename, save)
+        PP.saving()
 
     # Final Time after Computations
     end_time = time.time()
     logging.info("Execution Time: %f seconds", end_time - start_time)
-    PP.save()
 
     fred_goodbye()
 
@@ -73,7 +84,7 @@ def main(SFdf, resfilename):
 # ---------------------------------------------------------------------
 
 
-def main_run(SFdf, run, resfilename):
+def main_run(SFdf, run, resfilename, save):
     """Perform computation for given run number"""
     # Set Clock to measure the Computational Time
     run_start_time = time.time()
@@ -82,7 +93,7 @@ def main_run(SFdf, run, resfilename):
     run_basic_tests(SFdf, run)
 
     # Setting up Physical Quantities
-    PP = Physical_Quantities(SFdf, run)
+    PP = Physical_Quantities(SFdf, run, save)
     logging.info("FRED RUN %d: Class Physical Quantities Created", run)
     show_parameters(PP, run)  # Show parameters of the Run
 
@@ -91,6 +102,8 @@ def main_run(SFdf, run, resfilename):
 
     # Computation of the Singular Part of the Self-Force:
     singular_part(PP, run)
+    # PP.R_H = pickle.load(open("results/l=20/R_H.pkl", "rb"))
+    # PP.R_I = pickle.load(open("results/l=20/R_I.pkl", "rb"))
 
     # NOTE: Big Loop starts Here
     # Computing ell-Modes
@@ -107,7 +120,6 @@ def main_run(SFdf, run, resfilename):
             while nf <= PP.N_Fourier and n_estimated_error > PP.Mode_accuracy:
                 do_mode(ll, mm, nf, PP, run)
 
-                nf += 1  # Increasing the Fourier Mode Counter
                 n_estimated_error = np.amax(PP.Estimated_Error)
                 logging.info(
                     "FRED RUN %d: Mode (l,m,n) = (%d, %d, %02d) Computed (error=%.2e)",
@@ -117,6 +129,7 @@ def main_run(SFdf, run, resfilename):
                     nf,
                     n_estimated_error,
                 )
+                nf += 1  # Increasing the Fourier Mode Counter
 
             # Complete m-Mode Computation and add contribution to l-Mode
             PP.complete_m_mode(ll, mm)
@@ -142,12 +155,14 @@ def do_mode(ll, mm, nf, PP, run):
     indices = (ll, mm, nf + PP.N_Fourier)
 
     # Store computed modes from compute_mode
-    PP.R_H[indices] = PP.single_R_HOD
-    PP.R_I[indices] = PP.single_R_IOD
-    PP.Q_H[indices] = PP.single_Q_HOD
-    PP.Q_I[indices] = PP.single_Q_IOD
+    PP.store(indices)
+
+    pickle.dump(PP.R_H[indices], open("results/R_H_before.pkl", "wb"))
+    pickle.dump(PP.R_I[indices], open("results/R_I_before.pkl", "wb"))
 
     PP.rescale_mode(ll, mm, nf)
+    pickle.dump(PP.R_H[indices], open("results/R_H_after.pkl", "wb"))
+    pickle.dump(PP.R_I[indices], open("results/R_I_after.pkl", "wb"))
 
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:
@@ -326,7 +341,7 @@ if __name__ == "__main__":
     # Init is executed before importing julia for fast argparse help
 
     start_time = time.time()  # Initialize clock
-    SFdf, resfilename = init()
+    SFdf, resfilename, save = init()
 
     # --- julia imports ---
     import julia
@@ -342,4 +357,4 @@ if __name__ == "__main__":
     setup_time = time.time()
     logging.info("Setup Time: %d seconds", setup_time - start_time)
 
-    main(SFdf, resfilename)
+    main(SFdf, resfilename, save)
