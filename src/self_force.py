@@ -35,7 +35,7 @@ def init():
     parser.add_argument(
         "-save",
         action="store_true",
-        help="Save modes in whole horizon and infinite regions",
+        help="Save modes in whole horizon and infinite regions in results/ folder",
     )
     args = parser.parse_args()
 
@@ -118,7 +118,7 @@ def main_run(SFdf, run, resfilename, save):
             # Computing Fourier Modes (n-Modes):
             n_estimated_error = 10.0 * PP.Mode_accuracy
             nf = 0  # Fourier Mode Number
-            while nf <= PP.N_Fourier and n_estimated_error > PP.Mode_accuracy:
+            while nf < PP.N_Fourier and n_estimated_error > PP.Mode_accuracy:
                 do_mode(ll, mm, nf, PP, run, save)
 
                 n_estimated_error = np.amax(PP.Estimated_Error)
@@ -130,7 +130,7 @@ def main_run(SFdf, run, resfilename, save):
                     nf,
                     n_estimated_error,
                 )
-                nf += 1  # Increasing the Fourier Mode Counter
+                nf += 1  # Increase the Fourier Mode Counter
 
             # Complete m-Mode Computation and add contribution to l-Mode
             PP.complete_m_mode(ll, mm)
@@ -158,12 +158,7 @@ def do_mode(ll, mm, nf, PP, run, save):
     # Store computed modes from compute_mode
     PP.store(indices)
 
-    pickle.dump(PP.R_H[indices], open("results/R_H_before.pkl", "wb"))
-    pickle.dump(PP.R_I[indices], open("results/R_I_before.pkl", "wb"))
-
     PP.rescale_mode(ll, mm, nf)
-    pickle.dump(PP.R_H[indices], open("results/R_H_after.pkl", "wb"))
-    pickle.dump(PP.R_I[indices], open("results/R_I_after.pkl", "wb"))
 
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:

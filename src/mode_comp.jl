@@ -21,7 +21,6 @@ function regge_wheeler_potential(rstar, ll)
 
     Vl =  2.0 * exp(xstar - xsch) * (cb + 2.0 / rsch) / (rsch^3)
 
-    # @printf("%f, %f, %f, %f, %f, %f\n", rstar, ll, xstar, xsch, rsch, Vl)
     return Vl
 end
 
