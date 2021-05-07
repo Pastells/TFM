@@ -3,7 +3,6 @@ import os
 import logging
 import numpy as np
 from scipy import special
-import matplotlib.pyplot as plt
 
 
 def compute_spectral_coefficients(Ui, imag=False):
@@ -86,7 +85,7 @@ def spectral_time_integration(integrand, T_r):
 
 
 def run_basic_tests(DF, run):
-    """Testing consistency of the Run Parameters"""
+    """Test consistency of Run Parameters"""
 
     if DF.e_orbit[run] < 1.0e-14:
         logging.error("This version of the FRED Code computes the Self-Force for\n")
@@ -110,7 +109,7 @@ def run_basic_tests(DF, run):
 
 
 def Jump_Value(ll, mm, nf, PP):
-    """Computing the Fourier Modes of the Jumps [induced by the presence of the Particle]"""
+    """Compute the Fourier Modes of the Jumps [induced by the presence of the Particle]"""
 
     # Computing the Jump Global Coefficient [ONLY lm dependence]
     # [NOTE: The factor 8.0 instead of 4.0 is because the integration routine 'spectral_time_integration' uses the interval (0,T_r/2), not (0,T_r)]
@@ -169,154 +168,6 @@ def fred_goodbye():
     logging.info("FRED Code (c) 2012-2021 C.F. Sopuerta")
     logging.info("Goodbye!")
     quit()
-
-
-def plotall(PP):
-    """This functions plots the whole Minus and Plus Sectors separately"""
-
-    # PLOT of R_H versus r_H
-    plt.plot(PP.rho_HOD, PP.single_R_HOD, label="H Interval")
-    plt.xlabel("r_H")
-    plt.ylabel("R_H")
-    plt.title("FRED Plot of R_H(r_H)")
-    plt.legend()
-    plt.show()
-    return
-
-    # PLOT of R_H versus rs_H
-    plt.plot(CGC.rs_H, PP.single_R_H, label="H Interval")
-    plt.plot(CGC.rs_H_tr, PP.single_R_H_tr, label="H_tr Interval")
-    plt.plot(CGC.rs_H_pv, PP.single_R_H_pv, label="H_pv Internal")
-    plt.plot(CGC.rs_H_pp, PP.single_R_H_pp, label="H_pp Interval")
-
-    plt.xlabel("rs_H")
-    plt.ylabel("R_H")
-
-    plt.title("FRED Plot of R_H(rs_H)")
-    plt.legend()
-    plt.show()
-
-    # PLOT of R_I versus r_I
-    plt.plot(CGC.r_I, PP.single_R_I, label="I Interval")
-    plt.plot(CGC.r_I_tr, PP.single_R_I_tr, label="I_tr Interval")
-    plt.plot(CGC.r_I_pv, PP.single_R_I_pv, label="I_pv Internal")
-    plt.plot(CGC.r_I_pp, PP.single_R_I_pp, label="I_pp Interval")
-
-    plt.xlabel("r_I")
-    plt.ylabel("R_I")
-
-    plt.title("FRED Plot of R_I(r_I)")
-    plt.legend()
-    plt.show()
-
-    # PLOT of Q_H versus r_H
-    plt.plot(CGC.r_H, PP.single_Q_H, label="H Interval")
-    plt.plot(CGC.r_H_tr, PP.single_Q_H_tr, label="H_tr Interval")
-    plt.plot(CGC.r_H_pv, PP.single_Q_H_pv, label="H_pv Internal")
-    plt.plot(CGC.r_H_pp, PP.single_Q_H_pp, label="H_pp Interval")
-
-    plt.xlabel("r_H")
-    plt.ylabel("Q_H")
-
-    plt.title("FRED Plot of Q_H(r_H)")
-    plt.legend()
-    plt.show()
-
-    # PLOT of Q_H versus rs_H
-    plt.plot(CGC.rs_H, PP.single_Q_H, label="H Interval")
-    plt.plot(CGC.rs_H_tr, PP.single_Q_H_tr, label="H_tr Interval")
-    plt.plot(CGC.rs_H_pv, PP.single_Q_H_pv, label="H_pv Internal")
-    plt.plot(CGC.rs_H_pp, PP.single_Q_H_pp, label="H_pp Interval")
-
-    plt.xlabel("rs_H")
-    plt.ylabel("Q_H")
-
-    plt.title("FRED Plot of Q_H(rs_H)")
-    plt.legend()
-    plt.show()
-
-    # PLOT of Q_I versus r_I
-    plt.plot(CGC.r_I, PP.single_Q_I, label="I Interval")
-    plt.plot(CGC.r_I_tr, PP.single_Q_I_tr, label="I_tr Interval")
-    plt.plot(CGC.r_I_pv, PP.single_Q_I_pv, label="I_pv Internal")
-    plt.plot(CGC.r_I_pp, PP.single_Q_I_pp, label="I_pp Interval")
-
-    plt.xlabel("r_I")
-    plt.ylabel("Q_I")
-
-    plt.title("FRED Plot of Q_I(r_I)")
-    plt.legend()
-    plt.show()
-
-    # PLOT of R versus r
-    plt.plot(CGC.r_H, PP.single_R_H, label="H Interval")
-    plt.plot(CGC.r_H_tr, PP.single_R_H_tr, label="H_tr Interval")
-    plt.plot(CGC.r_H_pv, PP.single_R_H_pv, label="H_pv Internal")
-    plt.plot(CGC.r_H_pp, PP.single_R_H_pp, label="H_pp Interval")
-    plt.plot(CGC.r_I, PP.single_R_I, label="I Interval")
-    plt.plot(CGC.r_I_tr, PP.single_R_I_tr, label="I_tr Interval")
-    plt.plot(CGC.r_I_pv, PP.single_R_I_pv, label="I_pv Internal")
-    plt.plot(CGC.r_I_pp, PP.single_R_I_pp, label="I_pp Interval")
-
-    plt.xlabel("r")
-    plt.ylabel("R_000(r)")
-
-    plt.title("FRED Plot of R(r)")
-    plt.legend()
-    plt.show()
-
-    # PLOT of Q versus r
-    plt.plot(CGC.r_H, PP.single_Q_H, label="H Interval")
-    plt.plot(CGC.r_H_tr, PP.single_Q_H_tr, label="H_tr Interval")
-    plt.plot(CGC.r_H_pv, PP.single_Q_H_pv, label="H_pv Internal")
-    plt.plot(CGC.r_H_pp, PP.single_Q_H_pp, label="H_pp Interval")
-    plt.plot(CGC.r_I, PP.single_Q_I, label="I Interval")
-    plt.plot(CGC.r_I_tr, PP.single_Q_I_tr, label="I_tr Interval")
-    plt.plot(CGC.r_I_pv, PP.single_Q_I_pv, label="I_pv Internal")
-    plt.plot(CGC.r_I_pp, PP.single_Q_I_pp, label="I_pp Interval")
-
-    plt.xlabel("r")
-    plt.ylabel("Q_000(r)")
-
-    plt.title("FRED Plot of Q(r)")
-    plt.legend()
-    plt.show()
-
-    return
-
-
-def plotsomething(X, Y):
-    """This functions makes a single plot from the Data given"""
-
-    plt.plot(X, Y, label="Y=Y(X)")
-
-    plt.xlabel("X")
-    plt.ylabel("Y")
-
-    plt.title("FRED Plot")
-    plt.legend()
-    plt.show()
-
-    return
-
-
-def plotseveral(arg1, *Pargs):
-    """This functions makes a multiple plot from the Data given"""
-
-    n = 0
-    for argf in Pargs:
-        plt.plot(arg1, argf, label="Plot " + str(n))
-        n += 1
-
-    plt.xlabel("X")
-    plt.ylabel("Y")
-
-    plt.title("FRED Plot")
-    plt.legend()
-    plt.show()
-
-    # for np in range(1,nplots+1,1):
-    return
 
 
 def logging_func(filename, log_print):

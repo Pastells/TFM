@@ -1,21 +1,22 @@
 """FRED Code (c) 2012-2021 C.F. Sopuerta"""
 
-import time
 import os
+import sys
+import time
 import logging
+import traceback
+import pickle
 import argparse
 import pandas as pd
 import numpy as np
 from scipy import special
 from scipy.optimize import minimize_scalar
-import pickle
 from class_SF_Physics import Physical_Quantities
 from Some_functions import (
     run_basic_tests,
     show_parameters,
     fred_goodbye,
     logging_func,
-    plotall,
 )
 from Schwarzschild import zero_of_r_p_at_X, t_p_at_X, phi_p_at_X
 
@@ -118,7 +119,7 @@ def main_run(SFdf, run, resfilename, save):
             n_estimated_error = 10.0 * PP.Mode_accuracy
             nf = 0  # Fourier Mode Number
             while nf <= PP.N_Fourier and n_estimated_error > PP.Mode_accuracy:
-                do_mode(ll, mm, nf, PP, run)
+                do_mode(ll, mm, nf, PP, run, save)
 
                 n_estimated_error = np.amax(PP.Estimated_Error)
                 logging.info(
@@ -145,12 +146,12 @@ def main_run(SFdf, run, resfilename, save):
 # ---------------------------------------------------------------------
 
 
-def do_mode(ll, mm, nf, PP, run):
+def do_mode(ll, mm, nf, PP, run, save):
     """Computing the Bare Field Mode with Frequency omega_mn
     [REMEMBER: Psi is the scalar field and Phi its radial (tortoise) derivative]"""
     # TODO change name of function
 
-    compute_mode(ll, mm, nf, PP)
+    compute_mode(ll, mm, nf, PP, save=save)
 
     indices = (ll, mm, nf + PP.N_Fourier)
 
@@ -166,7 +167,7 @@ def do_mode(ll, mm, nf, PP, run):
 
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:
-        do_mode(ll, mm, -nf, PP, run)
+        do_mode(ll, mm, -nf, PP, run, save)
 
 
 # ---------------------------------------------------------------------
@@ -341,20 +342,32 @@ if __name__ == "__main__":
     # Init is executed before importing julia for fast argparse help
 
     start_time = time.time()  # Initialize clock
+
     SFdf, resfilename, save = init()
 
     # --- julia imports ---
-    import julia
+    try:
+        import julia
 
-    jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage.so")
-    # jl = julia.Julia(compiled_modules=False, depwarn=True)
-    from julia import Main
+        jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage.so")
+        # jl = julia.Julia(compiled_modules=False, depwarn=True)
+        from julia import Main
 
-    Main.include("src/mode_comp.jl")
-    compute_mode = Main.eval("compute_mode")  # global function
+        Main.include("src/mode_comp.jl")
+        compute_mode = Main.eval("compute_mode")  # global function
+    except Exception as ex:
+        logging.error("Error importing julia")
+        sys.stdout.write(f"{repr(ex)}\n")
+        traceback.print_exc(ex)
+
     logging.info("julia imports done")
     # ------------------------------------------------------
     setup_time = time.time()
     logging.info("Setup Time: %d seconds", setup_time - start_time)
 
-    main(SFdf, resfilename, save)
+    try:
+        main(SFdf, resfilename, save)
+    except Exception as ex:
+        logging.error("Error in main program")
+        sys.stdout.write(f"{repr(ex)}\n")
+        traceback.print_exc(ex)

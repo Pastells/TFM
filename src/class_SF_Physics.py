@@ -1,10 +1,10 @@
 import os
 import time
 import logging
+import pickle
 import numpy as np
 from scipy.integrate import odeint
 from scipy import special
-import pickle
 from orbital_computations import (
     compute_radial_period,
     compute_azimuthal_frequency,
@@ -76,7 +76,7 @@ class Physical_Quantities:
         self.rho_IOD = np.linspace(self.rho_apo, self.rho_peri, _N_OD1)
 
         if self.save:
-            self.rho_HD = np.linspace(self.rho_H_plus, self.rho_HC, self.N_HD + 1)
+            self.rho_HD = np.linspace(self.rho_H_plus, self.rho_peri, self.N_HD + 1)
             self.rho_ID = np.linspace(self.rho_I, self.rho_apo, self.N_ID + 1)
 
 
@@ -308,8 +308,6 @@ class Physical_Quantities:
     def store(self, indices):
         """Save solution from compute_mode into permanent ndarray
         indices = (ll, mm, nf + PP.N_Fourier)"""
-        print(indices)
-        print(self.single_R_HD)
 
         self.R_H[indices] = self.single_R_HOD
         self.R_I[indices] = self.single_R_IOD
@@ -389,26 +387,26 @@ class Physical_Quantities:
                 f"Pickle files already exist, moved into new folder {folder}"
             )
         else:
-            suffix = "results"
+            folder = "results"
 
         def pickle_dump(string, folder):
             object_to_save = getattr(self, string)
             object_name = folder + "/" + string + ".pkl"
             pickle.dump(object_to_save, open(object_name, "wb"))
 
-        pickle_dump("R_H", suffix)
-        pickle_dump("R_I", suffix)
-        pickle_dump("Q_H", suffix)
-        pickle_dump("Q_I", suffix)
-        pickle_dump("rho_HOD", suffix)
+        pickle_dump("R_H", folder)
+        pickle_dump("R_I", folder)
+        pickle_dump("Q_H", folder)
+        pickle_dump("Q_I", folder)
+        pickle_dump("rho_HOD", folder)
 
         if self.save:
-            pickle_dump("R_HD", suffix)
-            pickle_dump("R_ID", suffix)
-            pickle_dump("Q_HD", suffix)
-            pickle_dump("Q_ID", suffix)
-            pickle_dump("rho_HD", suffix)
-            pickle_dump("rho_ID", suffix)
+            pickle_dump("R_HD", folder)
+            pickle_dump("R_ID", folder)
+            pickle_dump("Q_HD", folder)
+            pickle_dump("Q_ID", folder)
+            pickle_dump("rho_HD", folder)
+            pickle_dump("rho_ID", folder)
 
     def __del__(self):
         """Instance Removal"""

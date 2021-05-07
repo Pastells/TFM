@@ -1,12 +1,12 @@
 using StaticArrays
 using OrdinaryDiffEq
-# using Printf
-# using DifferentialEquations
-
 using PyCall
+
+# Get absolute path
+FOLDER = normpath(joinpath(@__FILE__,"..",".."))
+
 machinery = pyimport("importlib.machinery")
-loader = machinery.SourceFileLoader("Schwarzschild",
-                                    "/home/pol/Documents/master_modelling/tfm/code/src/Schwarzschild.py")
+loader = machinery.SourceFileLoader("Schwarzschild", FOLDER * "/src/Schwarzschild.py")
 schw = loader.load_module("Schwarzschild")
 include("./hyperboloidal_compactification_tanh.jl")
 
@@ -26,80 +26,6 @@ function regge_wheeler_potential(rstar, ll)
 end
 
 # -----------------------------------------------
-
-"""ODE system that determines the solution to the Master Equation in the Horizon Domain
-NOTE: This is ONLY for the Zero Frequency Modes
-"""
-function RHS_HD_zero_freq(du, u, p, t)
-
-    ll, PP = p
-    rho = t
-    re_R, im_R, re_Q, im_Q = u
-    R = re_R + 1im * im_R
-    Q = re_Q + 1im * im_Q
-    dR, dQ = 0, 0
-
-    # Integration through the Horizon Domain (HD)
-    if PP.rho_H <= rho <= PP.rho_HC
-
-        Omega = 1.0 - rho / -20
-        H = 1.0 - Omega^2
-        DH_over_1minusH = (2.0 / -20) / Omega
-        one_minus_Hsq = Omega^4
-
-        rstar = rho / Omega
-        Vl = regge_wheeler_potential(rstar, ll)
-
-        dR = Q
-        dQ = DH_over_1minusH * Q + Vl / one_minus_Hsq * R
-
-        # Integration through the Horizon Transition Region
-    elseif PP.rho_HC < rho < PP.rho_HS
-
-        width = -10
-        sigma = 0.5 * pi * (rho - 0) / width
-        jacobian = 0.5 * pi / width
-
-        f0 = f_transition(sigma, PP.TF)
-        f1 = jacobian * f_transition_1st(f0, sigma, PP.TF)
-        f2 = (jacobian^2) * f_transition_2nd(f0, sigma, PP.TF)
-
-        Omega = 1.0 - f0 * rho / -20
-        dOmega_drho = -(f0 + rho * f1) / -20
-        d2Omega_drho2 = -(2.0 * f1 + rho * f2) / -20
-
-        LH = Omega - rho * dOmega_drho
-        H = 1.0 - (Omega^2) / LH
-        one_minus_H = 1.0 - H
-        DH = -(Omega / LH) * (2.0 * dOmega_drho + rho * (Omega / LH) * d2Omega_drho2)
-        DH_over_1minusH = DH / one_minus_H
-        one_minus_Hsq = one_minus_H^2
-
-        rstar = rho / Omega
-        Vl = regge_wheeler_potential(rstar, ll)
-
-        dR = Q
-        dQ = DH_over_1minusH * Q + Vl / one_minus_Hsq * R
-
-        # Integration through the Regular Region  (i.e. rho = rstar)
-    elseif PP.rho_HS <= rho <= PP.rho_peri
-        Vl = regge_wheeler_potential(rho, ll)
-        dR = Q
-        dQ = Vl * R
-
-        # Outside the Physical Integration Region
-    else
-        println( "rho= ", rho,
-                "  Out of Domain error during ODE Integration at the Horizon Domain",
-               )
-    end
-
-    du[1] = real(dR)
-    du[2] = imag(dR)
-    du[3] = real(dQ)
-    du[4] = imag(dQ)
-
-end
 
 """ODE system that determines the solution to the Master Equation in the Horizon Domain"""
 function RHS_HD(u, p, t)
@@ -197,6 +123,7 @@ function RHS_HD(u, p, t)
     @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
+# -----------------------------------------------
 
 """ODE system that determines the solution to the Master Equation in the Horizon Orbital Domain"""
 function RHS_HOD(u, p, t)
@@ -214,6 +141,7 @@ function RHS_HOD(u, p, t)
     @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
+# -----------------------------------------------
 
 """ODE system that determines the solution to the Master Equation in the Infinity Orbital Domain
 Defined backward, e.i. rho -> -rho, so can be integrated from right to left"""
@@ -231,6 +159,8 @@ function RHS_IOD(u, p, t)
 
     @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
+
+# -----------------------------------------------
 
 """ODE system that determines the solution to the Master Equation in the Infinity Domain
 Defined backward, e.i. rho -> -rho, so can be integrated from right to left"""
@@ -416,66 +346,74 @@ function RHS_ID(u, p, t)
     @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
+# -----------------------------------------------
 
-"""Create parameters array for solver.
+"""Solve both regions, starting from the horizon and infinity
+   uses static arrays to improve perfomance
    save :: keep HD and ID modes solutions"""
-function compute_mode(ll, mm, nf, PP, method=TRBDF2(), save=false)
+function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
     omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
     p = @SVector [ll,omega_mn,PP]
 
-    # HD
+    # ----- HD -----
     # print("HD")
     u0 = @SVector [1, 0, 0, -p[2]]
     tspan = (PP.rho_H_plus, PP.rho_peri)
     prob = ODEProblem(RHS_HD,u0,tspan,p)
-    if save
-        sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HD)
-    else
-        # save only last point
-        sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_peri)
-    end
+    # save at whole array or only last point
+    save ? saveat=PP.rho_HD : saveat=PP.rho_peri
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=saveat)
     lambda_minus = last(sol.u)[1]
 
-    # HOD
+    if save
+        u_matrix = hcat(sol.u...)'
+        u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
+        PP.single_R_HD = u_matrix[:,1] + 1im * u_matrix[:,2]
+        PP.single_Q_HD = u_matrix[:,3] + 1im * u_matrix[:,4]
+    end
+
+    # ----- HOD -----
     # print("HOD")
     u0 = last(sol.u)
-    @SVector [u0[1], u0[2], u0[3], u0[4]]
+    u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
     tspan = (PP.rho_peri, PP.rho_apo)
     prob = ODEProblem(RHS_HOD,u0,tspan,p)
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD)
 
-    u_matrix =  hcat(sol.u...)'
+    u_matrix = hcat(sol.u...)'
     u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
 
     PP.single_R_HOD = u_matrix[:,1] + 1im * u_matrix[:,2]
     PP.single_Q_HOD = u_matrix[:,3] + 1im * u_matrix[:,4]
 
-    # ID (backwards)
+    # ----- ID (backwards) -----
     # print("ID")
     u0 = @SVector [1,0,0,p[2]]
     tspan = (-PP.rho_I,-PP.rho_apo)
     prob = ODEProblem(RHS_ID,u0,tspan,p)
-    PP.rho_apo = -PP.rho_apo # t -> -t
-    if save
-        sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_ID)
-    else
-        # save only last point
-        sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_apo)
-    end
-    PP.rho_apo = -PP.rho_apo # -t -> t
+    # save at whole array or only last point
+    save ? saveat=PP.rho_ID : saveat=PP.rho_apo
+    # reverse time t -> -t, by changing saveat sign
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=-saveat)
     lambda_plus = last(sol.u)[1]
 
-    # IOD (backwards)
+    if save
+        u_matrix = hcat(sol.u...)'
+        u_matrix = u_matrix/lambda_plus  # λ⁻ = 1
+        PP.single_R_ID = u_matrix[:,1] + 1im * u_matrix[:,2]
+        PP.single_Q_ID = u_matrix[:,3] + 1im * u_matrix[:,4]
+    end
+
+    # ----- IOD (backwards) -----
     # print("IOD")
     u0 = last(sol.u)
-    @SVector [u0[1], u0[2], u0[3], u0[4]]
+    u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
     tspan = (-PP.rho_apo, -PP.rho_peri)
     prob = ODEProblem(RHS_IOD,u0,tspan,p)
-    PP.rho_IOD = -PP.rho_IOD # t -> -t
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_IOD)
-    PP.rho_IOD = -PP.rho_IOD # -t -> t
+    # reverse time t -> -t, by changing saveat sign
+    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=-PP.rho_IOD)
 
-    u_matrix =  hcat(sol.u...)'
+    u_matrix = hcat(sol.u...)'
     u_matrix = u_matrix/lambda_plus  # λ⁺ = 1
     PP.single_R_IOD = u_matrix[:,1] + 1im * u_matrix[:,2]
     PP.single_Q_IOD = u_matrix[:,3] + 1im * u_matrix[:,4]
