@@ -8,11 +8,12 @@ Manual installation:
   `pip install numpy scipy pandas julia`
 
 - Julia: with PyCall, OrdinaryDiffEq, StaticArrays, Markdown\
-  `julia -e 'using Pkg; Pkg.add("PyCall"); Pkg.add("OrdinaryDiffEq"); Pkg.add("StaticArrays")'`
+  `julia -e 'using Pkg; Pkg.add("PyCall"); Pkg.add("OrdinaryDiffEq"); Pkg.add("StaticArrays"); Pkg.add("Markdown")'`
 
-- OrdinaryDiffEq, StaticArrays are found precompiled in sysimage/ODEs.so\
+- OrdinaryDiffEq, StaticArrays are found precompiled in sysimage.so\
   The sysimage may be dependent on the julia version and other stuff. If it fails
   to execute, comment the line in self_force.py containing `sysimage` and uncomment
   the line below.
 
-Model executed like: `python src/self_force.py data/prova.csv`
+Model executed like:
+`python src/self_force.py data/prova.csv [-log_print] [-save]`

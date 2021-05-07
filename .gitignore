@@ -5,3 +5,5 @@
 env/
 src/other/
 src/proves/
+results/
+!results/.gitkeep
