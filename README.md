@@ -10,10 +10,9 @@ Manual installation:
 - Julia: with PyCall, OrdinaryDiffEq, StaticArrays, Markdown\
   `julia -e 'using Pkg; Pkg.add("PyCall"); Pkg.add("OrdinaryDiffEq"); Pkg.add("StaticArrays"); Pkg.add("Markdown")'`
 
-- OrdinaryDiffEq, StaticArrays are found precompiled in sysimage.so\
-  The sysimage may be dependent on the julia version and other stuff. If it fails
-  to execute, comment the line in self_force.py containing `sysimage` and uncomment
-  the line below.
+- OrdinaryDiffEq, StaticArrays can be precompiled to sysimage.so\
+   To create it, run: `julia src/create_sysimage.jl` Then uncomment the line in
+  self_force.py containing `sysimage` and comment the line above.
 
 Model executed like:
 `python src/self_force.py data/prova.csv [-log_print] [-save]`

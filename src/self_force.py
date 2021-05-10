@@ -349,8 +349,8 @@ if __name__ == "__main__":
     try:
         import julia
 
-        jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage.so")
-        # jl = julia.Julia(compiled_modules=False, depwarn=True)
+        jl = julia.Julia(compiled_modules=False, depwarn=True)
+        # jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage.so")
         from julia import Main
 
         Main.include("src/mode_comp.jl")
