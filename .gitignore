@@ -1,6 +1,7 @@
 **.zip
 **__pycache__
 **.swp
+**.so
 **.ipynb_checkpoints
 env/
 src/other/

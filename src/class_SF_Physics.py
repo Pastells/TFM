@@ -254,6 +254,9 @@ class Physical_Quantities:
         # Uniform Grid for the Schwarzschild Radial Coordinate: r_p
         self.r_p = self.r_peri + ((self.r_apo - self.r_peri) / self.N_OD) * np.arange(_N_OD1)
 
+        # Arrays for the Fourier Modes of the Jumps:
+        self.J_lmn = np.zeros((self.ell_max+1, self.ell_max+1, 2*self.N_Fourier+1), dtype=np.complex128)
+
         # Computing the d_lm coefficients:
         for ll in range(0, _ell_max1):
             for mm in range(0, ll + 1):
@@ -294,6 +297,7 @@ class Physical_Quantities:
             self.SF_F_r_l_H[ll] += 2 * np.real(self.SF_F_r_lm_H[ll, mm])
             self.SF_F_r_l_I[ll] += 2 * np.real(self.SF_F_r_lm_I[ll, mm])
 
+    # ------------------------------------------------------------------------
 
     def complete_l_mode(self, ll):
         """substract l-Mode contribution from the Singular field"""
@@ -304,6 +308,8 @@ class Physical_Quantities:
         # Total Regular Self-Force
         self.SF_r_H = self.SF_r_H + self.SF_R_r_l_H[ll]
         self.SF_r_I = self.SF_r_I + self.SF_R_r_l_I[ll]
+
+    # ------------------------------------------------------------------------
 
     def store(self, indices):
         """Save solution from compute_mode into permanent ndarray
@@ -320,6 +326,7 @@ class Physical_Quantities:
             self.Q_HD[indices] = self.single_Q_HD
             self.Q_ID[indices] = self.single_Q_ID
 
+    # ------------------------------------------------------------------------
 
     def rescale_mode(self, ll, mm, nf):
         """Computing the Values of the Field Modes (Phi,Psi)lmn [~ (R,Q)lmn in Frequency Domain] at the Particle Location
@@ -339,13 +346,15 @@ class Physical_Quantities:
         fp = 1.0 - 2.0 / rp
 
         # Value of the Jump
-        J_lmn = Jump_Value(ll, mm, nf, self)
+        # J_lmn = Jump_Value(ll, mm, nf, self)
+        self.J_lmn[indices] = Jump_Value(ll, mm, nf, self)
+        J_lmn = self.J_lmn[indices]
 
         # Computing the C_lmn Coefficients [for the Harmonic mode (ll,mm), Fourier mode 'nt', and location <=> time 'ns']
-        wronskian_RQ = self.R_I[indices] * self.Q_H[indices] - self.R_H[indices] * self.Q_I[indices]
+        wronskian_RQ = self.R_H[indices] * self.Q_I[indices] - self.R_I[indices] * self.Q_H[indices]
 
-        Cm_lmn = -self.R_I[indices] * J_lmn / wronskian_RQ
-        Cp_lmn = -self.R_H[indices] * J_lmn / wronskian_RQ
+        Cm_lmn = self.R_I[indices] * J_lmn / wronskian_RQ
+        Cp_lmn = self.R_H[indices] * J_lmn / wronskian_RQ
 
         # Computing the Values of the Bare Field Modes (R,Q)(ll,mm,nn) at the Particle Location 'ns'
         # using the Correct Boundary Conditions: RESCALING WITH THE C_lmn COEFFICIENTS
@@ -375,6 +384,7 @@ class Physical_Quantities:
         self.Accumulated_SF_F_r_lm_H[ll, mm] = self.SF_F_r_lm_H[ll, mm]
         self.Accumulated_SF_F_r_lm_I[ll, mm] = self.SF_F_r_lm_I[ll, mm]
 
+    # ------------------------------------------------------------------------
     # fmt: on
 
     def saving(self):
@@ -389,24 +399,27 @@ class Physical_Quantities:
         else:
             folder = "results"
 
-        def pickle_dump(string, folder):
+        def pickle_dump(string, directory=folder):
             object_to_save = getattr(self, string)
-            object_name = folder + "/" + string + ".pkl"
+            object_name = directory + "/" + string + ".pkl"
             pickle.dump(object_to_save, open(object_name, "wb"))
 
-        pickle_dump("R_H", folder)
-        pickle_dump("R_I", folder)
-        pickle_dump("Q_H", folder)
-        pickle_dump("Q_I", folder)
-        pickle_dump("rho_HOD", folder)
+        pickle_dump("R_H")
+        pickle_dump("R_I")
+        pickle_dump("Q_H")
+        pickle_dump("Q_I")
+        pickle_dump("rho_HOD")
+        pickle_dump("J_lmn")
 
         if self.save:
-            pickle_dump("R_HD", folder)
-            pickle_dump("R_ID", folder)
-            pickle_dump("Q_HD", folder)
-            pickle_dump("Q_ID", folder)
-            pickle_dump("rho_HD", folder)
-            pickle_dump("rho_ID", folder)
+            pickle_dump("R_HD")
+            pickle_dump("R_ID")
+            pickle_dump("Q_HD")
+            pickle_dump("Q_ID")
+            pickle_dump("rho_HD")
+            pickle_dump("rho_ID")
+
+    # ------------------------------------------------------------------------
 
     def __del__(self):
         """Instance Removal"""

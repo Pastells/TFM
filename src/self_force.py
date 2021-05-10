@@ -103,8 +103,6 @@ def main_run(SFdf, run, resfilename, save):
 
     # Computation of the Singular Part of the Self-Force:
     singular_part(PP, run)
-    # PP.R_H = pickle.load(open("results/l=20/R_H.pkl", "rb"))
-    # PP.R_I = pickle.load(open("results/l=20/R_I.pkl", "rb"))
 
     # NOTE: Big Loop starts Here
     # Computing ell-Modes
@@ -158,7 +156,14 @@ def do_mode(ll, mm, nf, PP, run, save):
     # Store computed modes from compute_mode
     PP.store(indices)
 
+    str_indices = "_".join(map(str, indices))
+    pickle.dump(PP.R_H[indices], open(f"results/R_H_before{str_indices}.pkl", "wb"))
+    pickle.dump(PP.R_I[indices], open("results/R_I_before{str_indices}.pkl", "wb"))
+
     PP.rescale_mode(ll, mm, nf)
+
+    pickle.dump(PP.R_H[indices], open("results/R_H_after{str_indices}.pkl", "wb"))
+    pickle.dump(PP.R_I[indices], open("results/R_I_after{str_indices}.pkl", "wb"))
 
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:

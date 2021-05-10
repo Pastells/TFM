@@ -90,7 +90,7 @@ def run_basic_tests(DF, run):
     if DF.e_orbit[run] < 1.0e-14:
         logging.error("This version of the FRED Code computes the Self-Force for\n")
         logging.error("Eccentric Orbits. For Circular Orbits use an adapted version\n")
-        logging.error("of the FRED Code (version 1.2).  Thanks!\n")
+        logging.error("of the FRED Code (version 2.0).  Thanks!\n")
         fred_goodbye()
 
     if DF.N_time[run] % 2 != 0:
@@ -164,7 +164,7 @@ def show_parameters(PP, run):
 def fred_goodbye():
     """This funtion just says Goodbye :-)"""
     # if __name__ == "__main__":
-    logging.info("Thanks for using the FRED Code (version py-v3.0)")
+    logging.info("Thanks for using the FRED Code (version 2.0)")
     logging.info("FRED Code (c) 2012-2021 C.F. Sopuerta")
     logging.info("Goodbye!")
     quit()
