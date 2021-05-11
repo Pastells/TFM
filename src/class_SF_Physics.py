@@ -14,9 +14,9 @@ from Schwarzschild import r_schwarzschild_to_r_tortoise
 from Some_functions import Jump_Value
 
 
+# fmt: off
 class Physical_Quantities:
-    # fmt: off
-    def __init__(self, DF, run, save=False):
+    def __init__(self, DF, run=0, save=False):
         """Initializer / Instance Attributes"""
 
         self.run = run
@@ -258,8 +258,8 @@ class Physical_Quantities:
         self.J_lmn = np.zeros((self.ell_max+1, self.ell_max+1, 2*self.N_Fourier+1), dtype=np.complex128)
 
         # Computing the d_lm coefficients:
-        for ll in range(0, _ell_max1):
-            for mm in range(0, ll + 1):
+        for ll in range(_ell_max1):
+            for mm in range(ll + 1):
 
                 # Checking whether ell+m is even (for ell+m odd the contribution is zero)
                 if (ll + mm) % 2 == 0:
@@ -267,6 +267,14 @@ class Physical_Quantities:
 
                 else:
                     self.d_lm[ll, mm] = 0.0
+
+        # List of variables to be saved / retrieved with pickle
+        self.var_list = ["R_H", "R_I", "Q_H", "Q_I", "rho_HOD", "J_lmn",
+                         "SF_F_r_l_H", "SF_F_r_l_I", "SF_S_r_l_H", "SF_S_r_l_I"]
+
+        if self.save:
+            self.var_list += ["R_HD", "R_ID", "Q_HD", "Q_ID",
+                              "rho_HD", "rho_ID" ]
 
     # ------------------------------------------------------------------------
     # Functions
@@ -278,16 +286,14 @@ class Physical_Quantities:
         Self-Force at each particle location
         Add contribution of the m_Mode to the l_Mode of the Radial Component"""
 
-        self.SF_F_r_lm_H[ll, mm] *= (
-            (self.particle_charge / self.r_p)
+        weight = (
+            self.particle_charge / self.r_p
             * self.d_lm[ll, mm]
             * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
         )
-        self.SF_F_r_lm_I[ll, mm] *= (
-            (self.particle_charge / self.r_p)
-            * self.d_lm[ll, mm]
-            * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
-        )
+
+        self.SF_F_r_lm_H[ll, mm] *= weight
+        self.SF_F_r_lm_I[ll, mm] *= weight
 
         # Add contribution to l-Mode (appendix A)
         if mm == 0:
@@ -346,34 +352,29 @@ class Physical_Quantities:
         fp = 1.0 - 2.0 / rp
 
         # Value of the Jump
-        # J_lmn = Jump_Value(ll, mm, nf, self)
+        # J_lmn = Jump_Value(ll, mm, nf, self)  # TODO provisional
         self.J_lmn[indices] = Jump_Value(ll, mm, nf, self)
         J_lmn = self.J_lmn[indices]
 
         # Computing the C_lmn Coefficients [for the Harmonic mode (ll,mm), Fourier mode 'nt', and location <=> time 'ns']
         wronskian_RQ = self.R_H[indices] * self.Q_I[indices] - self.R_I[indices] * self.Q_H[indices]
-
         Cm_lmn = self.R_I[indices] * J_lmn / wronskian_RQ
         Cp_lmn = self.R_H[indices] * J_lmn / wronskian_RQ
 
         # Computing the Values of the Bare Field Modes (R,Q)(ll,mm,nn) at the Particle Location 'ns'
         # using the Correct Boundary Conditions: RESCALING WITH THE C_lmn COEFFICIENTS
-        self.R_H[indices] = Cm_lmn * self.R_H[indices]
-        self.Q_H[indices] = Cm_lmn * self.Q_H[indices]
-
-        self.R_I[indices] = Cp_lmn * self.R_I[indices]
-        self.Q_I[indices] = Cp_lmn * self.Q_I[indices]
+        self.R_H[indices] *= Cm_lmn
+        self.Q_H[indices] *= Cm_lmn
+        self.R_I[indices] *= Cp_lmn
+        self.Q_I[indices] *= Cp_lmn
 
         # Computation of the contribution of the Fourier Mode 'nf' (l m nf) to the Radial Component of the Bare (full) Self-Force
         # [NOTE: This is the contribution up to a multiplicative factor that is applied below]
-        self.SF_F_r_lm_H[ll, mm] = self.SF_F_r_lm_H[ll, mm] + (
-            self.Q_H[indices] / fp - self.R_H[indices] / rp
-        ) * np.exp(-1j * nf * self.omega_r * self.t_p)
-        self.SF_F_r_lm_I[ll, mm] = self.SF_F_r_lm_I[ll, mm] + (
-            self.Q_I[indices] / fp - self.R_I[indices] / rp
-        ) * np.exp(-1j * nf * self.omega_r * self.t_p)
+        exp_factor = np.exp(-1j * nf * self.omega_r * self.t_p)
+        self.SF_F_r_lm_H[ll, mm] += (self.Q_H[indices] / fp - self.R_H[indices] / rp) * exp_factor
+        self.SF_F_r_lm_I[ll, mm] += (self.Q_I[indices] / fp - self.R_I[indices] / rp) * exp_factor
 
-        # print( f"l={ll} m={mm} n={nf}: c_H[{nf}]={self.SF_F_r_lm_H[ll, mm]:.14f}  c_I[{nf}]={self.SF_F_r_lm_I[ll, mm]:.14f}")
+        # print( f"l={ll} m={mm} n={nf}: c_H[{nf}]={self.SF_F_r_lm_H[ll, mm]}  c_I[{nf}]={self.SF_F_r_lm_I[ll, mm]}")
 
         # Estimate error and store contribution
         self.Estimated_Error = np.maximum(
@@ -385,7 +386,6 @@ class Physical_Quantities:
         self.Accumulated_SF_F_r_lm_I[ll, mm] = self.SF_F_r_lm_I[ll, mm]
 
     # ------------------------------------------------------------------------
-    # fmt: on
 
     def saving(self):
         """Save resulting modes"""
@@ -399,25 +399,24 @@ class Physical_Quantities:
         else:
             folder = "results"
 
-        def pickle_dump(string, directory=folder):
+        def _pickle_dump(string, directory=folder):
             object_to_save = getattr(self, string)
             object_name = directory + "/" + string + ".pkl"
             pickle.dump(object_to_save, open(object_name, "wb"))
 
-        pickle_dump("R_H")
-        pickle_dump("R_I")
-        pickle_dump("Q_H")
-        pickle_dump("Q_I")
-        pickle_dump("rho_HOD")
-        pickle_dump("J_lmn")
+        for var in self.var_list:
+            _pickle_dump(var)
 
-        if self.save:
-            pickle_dump("R_HD")
-            pickle_dump("R_ID")
-            pickle_dump("Q_HD")
-            pickle_dump("Q_ID")
-            pickle_dump("rho_HD")
-            pickle_dump("rho_ID")
+    # ------------------------------------------------------------------------
+
+    def read(self, folder="results"):
+        def _pickle_load(string, directory=folder):
+            object_name = directory + "/" + string + ".pkl"
+            object_to_load = pickle.load(open(object_name, "rb"))
+            setattr(self, string, object_to_load)
+
+        for var in self.var_list:
+            _pickle_load(var)
 
     # ------------------------------------------------------------------------
 
@@ -432,3 +431,4 @@ class Physical_Quantities:
         def __init__(self):
             self.s = 0.0
             self.q = 0.0
+# fmt: on

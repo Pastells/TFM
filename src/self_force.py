@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import datetime
 import logging
 import traceback
 import pickle
@@ -71,7 +72,7 @@ def main(SFdf, resfilename, save):
     N_runs = SFdf.shape[0]
 
     # Starting the different Runs in the Parameter File 'data'
-    for run in range(0, N_runs):
+    for run in range(N_runs):
         PP = main_run(SFdf, run, resfilename, save)
         PP.saving()
 
@@ -106,8 +107,8 @@ def main_run(SFdf, run, resfilename, save):
 
     # NOTE: Big Loop starts Here
     # Computing ell-Modes
-    for ll in range(0, PP.ell_max + 1):  # Harmonic Number l
-        for mm in range(0, ll + 1):  # Harmonic Number m
+    for ll in range(PP.ell_max + 1):  # Harmonic Number l
+        for mm in range(ll + 1):  # Harmonic Number m
 
             # Check whether ell+m is odd (contribution is zero, so it can be skipped)
             if (ll + mm) % 2 == 1:
@@ -157,13 +158,13 @@ def do_mode(ll, mm, nf, PP, run, save):
     PP.store(indices)
 
     str_indices = "_".join(map(str, indices))
-    pickle.dump(PP.R_H[indices], open(f"results/R_H_before{str_indices}.pkl", "wb"))
-    pickle.dump(PP.R_I[indices], open("results/R_I_before{str_indices}.pkl", "wb"))
+    pickle.dump(PP.R_H[indices], open(f"results/R_H_before_{str_indices}.pkl", "wb"))
+    pickle.dump(PP.R_I[indices], open(f"results/R_I_before_{str_indices}.pkl", "wb"))
 
     PP.rescale_mode(ll, mm, nf)
 
-    pickle.dump(PP.R_H[indices], open("results/R_H_after{str_indices}.pkl", "wb"))
-    pickle.dump(PP.R_I[indices], open("results/R_I_after{str_indices}.pkl", "wb"))
+    pickle.dump(PP.R_H[indices], open(f"results/R_H_after_{str_indices}.pkl", "wb"))
+    pickle.dump(PP.R_I[indices], open(f"results/R_I_after_{str_indices}.pkl", "wb"))
 
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:
@@ -183,7 +184,7 @@ def project_geodesic(PP, run):
         r_goal = PP.r_p[i]
 
         error0 = PP.r_apo - PP.r_peri
-        for nt in range(0, PP.N_time + 1):
+        for nt in range(PP.N_time + 1):
             error = np.abs(r_goal - PP.r_p_f[nt])
 
             if error < error0:
@@ -221,7 +222,7 @@ def project_geodesic(PP, run):
 
 def singular_part(PP, run):
     """Computation of the Singular Part of the Self-Force"""
-    for ns in range(0, PP.N_OD + 1):
+    for ns in range(PP.N_OD + 1):
 
         # Radial Location of the Particle:
         chi_p_now = PP.chi_p[ns]
@@ -259,7 +260,7 @@ def singular_part(PP, run):
         ff_5d2 = special.hyp2f1(2.5, 0.5, 1.0, alpha)
 
         # Computing Regularization Parameters:
-        for ll in range(0, PP.ell_max + 1):
+        for ll in range(PP.ell_max + 1):
 
             delta_r = -1.0
             PP.A_t_H[ll][ns] = delta_r * dr_p_now_dtau / qaux1
@@ -297,8 +298,8 @@ def singular_part(PP, run):
 
 def run_prints(PP, run, resfilename, run_start_time):
     """Printing the different field components with zero Fourier Mode (nf = 0)
-    P for ll in range(0, PP.ell_max+1):                         # Harmonic Number l
-    P for mm in range(0, ll+1):                             # Harmonic Number m
+    P for ll in range(PP.ell_max+1):                         # Harmonic Number l
+    P for mm in range(ll+1):                             # Harmonic Number m
     P ns = 3
     P print('l=',ll,' m=',mm,' R- =', PP.R_H[ll, mm, PP.N_Fourier, ns],
     ' Q- =', PP.Q_H[ll, mm, PP.N_Fourier, ns],' R+ =', PP.R_I[ll, mm, PP.N_Fourier, ns],' Q+ =', PP.Q_I[ll, mm, PP.N_Fourier, ns])"""
@@ -306,18 +307,19 @@ def run_prints(PP, run, resfilename, run_start_time):
     # Taking end time of the Run and computing total time for the Run:
     run_end_time = time.time()
     run_total_time = run_end_time - run_start_time
+    str_time = str(datetime.timedelta(seconds=run_total_time))
 
     # Printing the l-components of the Bare Self-Force
     ns = 3
     print("\n\nResults for the l-Components of the Bare Self-Force at time t = ", PP.t_p[ns])
-    for ll in range(0, PP.ell_max + 1):
+    for ll in range(PP.ell_max + 1):
         print("l=", ll, " FF- =", np.real(PP.SF_F_r_l_H[ll, ns]), " FF+ =", np.real(PP.SF_F_r_l_I[ll, ns]),
             " FS- =", np.real(PP.SF_S_r_l_H[ll, ns]), " FS+ =", np.real(PP.SF_S_r_l_I[ll, ns]),
             " FR- =", np.real(PP.SF_R_r_l_H[ll, ns]), " FR+ =", np.real(PP.SF_R_r_l_I[ll, ns]),
         )
 
     # Total number of (l m)-Modes
-    number_modes = (PP.ell_max + 1) * (PP.ell_max + 2) / 2
+    number_modes = int((PP.ell_max + 1) * (PP.ell_max + 2) / 2)
 
     # Saving the results of the Computation into a File:
     with open(resfilename, "a") as resultsfile:
@@ -328,10 +330,10 @@ def run_prints(PP, run, resfilename, run_start_time):
         resultsfile.write(f"#   Number of Collocation Points per Domain:         N = {2*PP.N_OD+1}\n")
         resultsfile.write(f"#   Orbital Eccentricity:                            e = {PP.e_orbit}\n")
         resultsfile.write(f"#   Orbital Semilatus Rectum:                        p = {PP.p_orbit}\n")
-        resultsfile.write(f"#   Total Run Time:                                 Tc = {run_total_time}\n#\n")
+        resultsfile.write(f"#   Total Run Time:                                 Tc = {str_time}\n#\n")
         resultsfile.write("#   r_p            F_r-            F_r+\n")
-        for ns in range(0, PP.N_OD):
-            resultsfile.write(f"{PP.r_p[ns]:.6f},{np.real(PP.SF_r_H[ns]):.14f},{np.real(PP.SF_r_I[ns]):.14f}\n")
+        for ns in range(PP.N_OD):
+            resultsfile.write(f"{PP.r_p[ns]:.6f},{np.real(PP.SF_r_H[ns]):.14f},{np.real(PP.SF_r_I[ns]):.14f},\n")
 
     # fmt: on
 
@@ -349,8 +351,8 @@ if __name__ == "__main__":
     try:
         import julia
 
-        jl = julia.Julia(compiled_modules=False, depwarn=True)
-        # jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage.so")
+        # jl = julia.Julia(compiled_modules=False, depwarn=True)
+        jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage.so")
         from julia import Main
 
         Main.include("src/mode_comp.jl")
