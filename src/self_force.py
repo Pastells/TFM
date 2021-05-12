@@ -25,11 +25,8 @@ from Schwarzschild import zero_of_r_p_at_X, t_p_at_X, phi_p_at_X
 # ---------------------------------------------------------------------
 
 
-def init():
-    """Read data, import julia, initialize parser and logger
-    Returns SFdf dataframe and resfilename"""
-
-    # --- Parser ---
+def parsing():
+    """Parse imput arguments and return them in args object"""
     parser = argparse.ArgumentParser(description="FRED program")
     parser.add_argument("data", type=str, help="Input csv data file")
     parser.add_argument("-log_print", action="store_true", help="Print all log output")
@@ -38,11 +35,27 @@ def init():
         action="store_true",
         help="Save modes in whole horizon and infinite regions in results/ folder",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "-ell_init",
+        type=int,
+        default=0,
+        help="Start computation from some ell mode. Useful to continue already started problem.",
+    )
+    return parser.parse_args()
 
-    # --- Read Data from Parameter File into a Pandas DataFrame [SFdf] ---
+
+# ---------------------------------------------------------------------
+
+
+def init():
+    """Read data, import julia, initialize parser and logger
+    Returns df dataframe and resfilename"""
+
+    args = parsing()
+
+    # --- Read Data from Parameter File into a Pandas DataFrame [df] ---
     filename = args.data
-    SFdf = pd.read_csv(filename)
+    df = pd.read_csv(filename)
 
     # logging
     logging_func(filename, args.log_print)
@@ -58,22 +71,22 @@ def init():
             f'# FRED RESULTS FILE [File opened on {time.strftime("%Y-%m-%d %H:%M")}]\n'
         )
 
-    return SFdf, resfilename, args.save
+    return df, resfilename, args
 
 
 # ---------------------------------------------------------------------
 
 
-def main(SFdf, resfilename, save):
+def main(df, resfilename, args):
     """Execute main program"""
 
     start_time = time.time()  # Initialize clock
 
-    N_runs = SFdf.shape[0]
+    N_runs = df.shape[0]
 
     # Starting the different Runs in the Parameter File 'data'
     for run in range(N_runs):
-        PP = main_run(SFdf, run, resfilename, save)
+        PP = main_run(df, run, resfilename, args)
         PP.saving()
 
     # Final Time after Computations
@@ -86,16 +99,16 @@ def main(SFdf, resfilename, save):
 # ---------------------------------------------------------------------
 
 
-def main_run(SFdf, run, resfilename, save):
+def main_run(df, run, resfilename, args):
     """Perform computation for given run number"""
     # Set Clock to measure the Computational Time
     run_start_time = time.time()
 
     # Checking the Run Parameters
-    run_basic_tests(SFdf, run)
+    run_basic_tests(df, run)
 
     # Setting up Physical Quantities
-    PP = Physical_Quantities(SFdf, run, save)
+    PP = Physical_Quantities(df, run, args.save)
     logging.info("FRED RUN %d: Class Physical Quantities Created", run)
     show_parameters(PP, run)  # Show parameters of the Run
 
@@ -107,7 +120,7 @@ def main_run(SFdf, run, resfilename, save):
 
     # NOTE: Big Loop starts Here
     # Computing ell-Modes
-    for ll in range(PP.ell_max + 1):  # Harmonic Number l
+    for ll in range(args.ell_init, PP.ell_max + 1):  # Harmonic Number l
         for mm in range(ll + 1):  # Harmonic Number m
 
             # Check whether ell+m is odd (contribution is zero, so it can be skipped)
@@ -118,7 +131,7 @@ def main_run(SFdf, run, resfilename, save):
             n_estimated_error = 10.0 * PP.Mode_accuracy
             nf = 0  # Fourier Mode Number
             while nf < PP.N_Fourier and n_estimated_error > PP.Mode_accuracy:
-                do_mode(ll, mm, nf, PP, run, save)
+                do_mode(ll, mm, nf, PP, run, args.save)
 
                 n_estimated_error = np.amax(PP.Estimated_Error)
                 logging.info(
@@ -180,18 +193,14 @@ def project_geodesic(PP, run):
     PP.phi_p[0] = PP.phi_p_f[0]
 
     for i in range(1, PP.N_OD):
-        ntime = 0
         r_goal = PP.r_p[i]
 
         error0 = PP.r_apo - PP.r_peri
-        for nt in range(PP.N_time + 1):
-            error = np.abs(r_goal - PP.r_p_f[nt])
+        for n_t in range(PP.N_time + 1):
+            error = np.abs(r_goal - PP.r_p_f[n_t])
 
             if error < error0:
                 error0 = error
-                ntime = nt
-
-        X_guess = PP.Xt[ntime]  # TODO check if needed
 
         res = minimize_scalar(
             zero_of_r_p_at_X,
@@ -201,10 +210,9 @@ def project_geodesic(PP, run):
             options={"xatol": 1e-15, "maxiter": 50000000000},
         )
 
-        Xv = res.x
-
-        PP.t_p[i] = t_p_at_X(Xv, PP)
-        PP.phi_p[i] = phi_p_at_X(Xv, PP)
+        x_v = res.x
+        PP.t_p[i] = t_p_at_X(x_v, PP)
+        PP.phi_p[i] = phi_p_at_X(x_v, PP)
 
     PP.t_p[PP.N_OD] = PP.t_p_f[PP.N_time]
     PP.phi_p[PP.N_OD] = PP.phi_p_f[PP.N_time]
@@ -222,73 +230,53 @@ def project_geodesic(PP, run):
 
 def singular_part(PP, run):
     """Computation of the Singular Part of the Self-Force"""
-    for ns in range(PP.N_OD + 1):
 
-        # Radial Location of the Particle:
-        chi_p_now = PP.chi_p[ns]
-        r_p_now = PP.r_p[ns]
+    # Schwarzschild Metric Function f at tbe Particle Location:
+    f_p = 1 - 2 / PP.r_p
 
-        # Schwarzschild Metric Function f at tbe Particle Location:
-        f_p = 1.0 - 2.0 / r_p_now
+    # Computing rdot:
+    q1 = PP.p_orbit / PP.r_p
+    q3 = PP.p_orbit - 2 * q1
+    q4 = np.sqrt((PP.p_orbit - 2) ** 2 - 4 * (PP.e_orbit ** 2))
+    q5 = q3 * (q1 ** 2) / (q4 * PP.p_orbit)
 
-        # Computing rdot:
-        q1 = PP.p_orbit / r_p_now
-        q3 = PP.p_orbit - 2.0 * q1
-        q4 = np.sqrt((PP.p_orbit - 2.0) ** 2 - 4.0 * (PP.e_orbit ** 2))
-        q5 = q3 * (q1 ** 2) / (q4 * PP.p_orbit)
+    chi_dot = q5 * (np.sqrt(PP.p_orbit - 4 - 2 * q1)) / (PP.p_orbit)
 
-        chi_dot = q5 * (np.sqrt(PP.p_orbit - 4.0 - 2.0 * q1)) / (PP.p_orbit)
+    dr_p_now_dtau = (
+        PP.Ep
+        * PP.r_p ** 2
+        * PP.e_orbit
+        * np.sin(PP.chi_p)
+        * chi_dot
+        / (f_p * (PP.p_orbit))
+    )
 
-        dr_p_now_dtau = (
-            (PP.Ep)
-            * (r_p_now ** 2)
-            * (PP.e_orbit)
-            * (np.sin(chi_p_now))
-            * chi_dot
-            / (f_p * (PP.p_orbit))
+    # Computing other relevant quantities:
+    qaux1 = 1 + ((PP.Lp) ** 2) / (PP.r_p ** 2)
+    qaux2 = (qaux1) ** (1.5)
+    alpha = ((PP.Lp) ** 2) / (PP.r_p ** 2 + (PP.Lp) ** 2)
+
+    # Computing the Value of some Hypergeometric Functions:
+    ff_1d2 = special.hyp2f1(0.5, 0.5, 1.0, alpha)
+    ff_m1d2 = special.hyp2f1(-0.5, 0.5, 1.0, alpha)
+
+    # Computing Regularization Parameters, not dependent on ell:
+    A_r_H = PP.Ep / (f_p * qaux1)
+    A_r_I = -PP.Ep / (f_p * qaux1)
+
+    B_r = (
+        (dr_p_now_dtau ** 2 - 2 * PP.Ep ** 2) * ff_1d2
+        + (dr_p_now_dtau ** 2 + PP.Ep ** 2) * ff_m1d2
+    ) / (2 * f_p * qaux2)
+
+    # Computing Singular Part of the Self-Force (only the radial component at the moment):
+    for ll in range(PP.ell_max + 1):
+        PP.SF_S_r_l_H[ll] = (
+            PP.particle_charge * ((ll + 0.5) * A_r_H[ll] + B_r[ll]) / (PP.r_p ** 2)
         )
-
-        # Computing other relevant quantities:
-        qaux1 = 1.0 + ((PP.Lp) ** 2) / (r_p_now ** 2)
-        qaux2 = (qaux1) ** (1.5)
-        alpha = ((PP.Lp) ** 2) / (r_p_now ** 2 + (PP.Lp) ** 2)
-
-        # Computing the Value of some Hypergeometric Functions:
-        ff_1d2 = special.hyp2f1(0.5, 0.5, 1.0, alpha)
-        ff_m1d2 = special.hyp2f1(-0.5, 0.5, 1.0, alpha)
-        ff_3d2 = special.hyp2f1(1.5, 0.5, 1.0, alpha)
-        ff_5d2 = special.hyp2f1(2.5, 0.5, 1.0, alpha)
-
-        # Computing Regularization Parameters:
-        for ll in range(PP.ell_max + 1):
-
-            delta_r = -1.0
-            PP.A_t_H[ll][ns] = delta_r * dr_p_now_dtau / qaux1
-            PP.A_r_H[ll][ns] = -delta_r * (PP.Ep) / (f_p * qaux1)
-
-            delta_r = 1.0
-            PP.A_t_I[ll][ns] = delta_r * dr_p_now_dtau / qaux1
-            PP.A_r_I[ll][ns] = -delta_r * (PP.Ep) / (f_p * qaux1)
-            PP.B_t[ll][ns] = (PP.Ep) * dr_p_now_dtau * (0.5 * ff_1d2 - ff_m1d2) / qaux2
-
-            PP.B_r[ll][ns] = (
-                (dr_p_now_dtau ** 2 - 2.0 * (PP.Ep) ** 2) * ff_1d2
-                + (dr_p_now_dtau ** 2 + (PP.Ep) ** 2) * ff_m1d2
-            ) / (2.0 * f_p * qaux2)
-
-            PP.D_r[ll][ns] = 0.0
-
-            # Computing Singular Part of the Self-Force (only the radial component at the moment):
-            PP.SF_S_r_l_H[ll][ns] = (
-                (PP.particle_charge)
-                * ((ll + 0.5) * (PP.A_r_H[ll][ns]) + PP.B_r[ll][ns])
-                / (r_p_now ** 2)
-            )
-            PP.SF_S_r_l_I[ll][ns] = (
-                (PP.particle_charge)
-                * ((ll + 0.5) * (PP.A_r_I[ll][ns]) + PP.B_r[ll][ns])
-                / (r_p_now ** 2)
-            )
+        PP.SF_S_r_l_I[ll] = (
+            PP.particle_charge * ((ll + 0.5) * A_r_I[ll] + B_r[ll]) / (PP.r_p ** 2)
+        )
 
     logging.info("FRED RUN %d: Singular Part of the Self-Force Computed", run)
 
@@ -297,12 +285,7 @@ def singular_part(PP, run):
 
 
 def run_prints(PP, run, resfilename, run_start_time):
-    """Printing the different field components with zero Fourier Mode (nf = 0)
-    P for ll in range(PP.ell_max+1):                         # Harmonic Number l
-    P for mm in range(ll+1):                             # Harmonic Number m
-    P ns = 3
-    P print('l=',ll,' m=',mm,' R- =', PP.R_H[ll, mm, PP.N_Fourier, ns],
-    ' Q- =', PP.Q_H[ll, mm, PP.N_Fourier, ns],' R+ =', PP.R_I[ll, mm, PP.N_Fourier, ns],' Q+ =', PP.Q_I[ll, mm, PP.N_Fourier, ns])"""
+    """Printing results"""
     # fmt: off
     # Taking end time of the Run and computing total time for the Run:
     run_end_time = time.time()
@@ -314,9 +297,9 @@ def run_prints(PP, run, resfilename, run_start_time):
     print("\n\nResults for the l-Components of the Bare Self-Force at time t = ", PP.t_p[ns])
     for ll in range(PP.ell_max + 1):
         print("l=", ll, " FF- =", np.real(PP.SF_F_r_l_H[ll, ns]), " FF+ =", np.real(PP.SF_F_r_l_I[ll, ns]),
-            " FS- =", np.real(PP.SF_S_r_l_H[ll, ns]), " FS+ =", np.real(PP.SF_S_r_l_I[ll, ns]),
-            " FR- =", np.real(PP.SF_R_r_l_H[ll, ns]), " FR+ =", np.real(PP.SF_R_r_l_I[ll, ns]),
-        )
+              " FS- =", np.real(PP.SF_S_r_l_H[ll, ns]), " FS+ =", np.real(PP.SF_S_r_l_I[ll, ns]),
+              " FR- =", np.real(PP.SF_R_r_l_H[ll, ns]), " FR+ =", np.real(PP.SF_R_r_l_I[ll, ns]),
+             )
 
     # Total number of (l m)-Modes
     number_modes = int((PP.ell_max + 1) * (PP.ell_max + 2) / 2)
@@ -345,7 +328,7 @@ if __name__ == "__main__":
 
     start_time = time.time()  # Initialize clock
 
-    SFdf, resfilename, save = init()
+    df, resfilename, args = init()
 
     # --- julia imports ---
     try:
@@ -368,7 +351,7 @@ if __name__ == "__main__":
     logging.info("Setup Time: %d seconds", setup_time - start_time)
 
     try:
-        main(SFdf, resfilename, save)
+        main(df, resfilename, args)
     except Exception as ex:
         logging.error("Error in main program")
         sys.stdout.write(f"{repr(ex)}\n")

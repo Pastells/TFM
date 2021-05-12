@@ -16,37 +16,34 @@ from Some_functions import Jump_Value
 
 # fmt: off
 class Physical_Quantities:
-    def __init__(self, DF, run=0, save=False):
+    def __init__(self, df, run=0, save=False):
         """Initializer / Instance Attributes"""
 
         self.run = run
         self.save = save
 
-
         # PHYSICAL PARAMETERS OF THE RUN
-        self.particle_charge = DF.particle_charge[self.run]
-        self.mass_ratio = DF.mass_ratio[self.run]
-        self.field_spin = DF.field_spin[self.run]
+        self.particle_charge = df.particle_charge[self.run]
+        self.mass_ratio = df.mass_ratio[self.run]
+        self.field_spin = df.field_spin[self.run]
         self.sigma_spin = 1.0 - (self.field_spin) ** 2
-        self.e_orbit = DF.e_orbit[self.run]
-        self.p_orbit = DF.p_orbit[self.run]
+        self.e_orbit = df.e_orbit[self.run]
+        self.p_orbit = df.p_orbit[self.run]
 
-        self.ell_max = DF.Max_ell[self.run]
-        self.N_HD = DF.N_HD[self.run]
-        self.N_OD = DF.N_OD[self.run]
-        self.N_ID = DF.N_ID[self.run]
-        self.N_time = DF.N_time[self.run]
-        self.N_Fourier = int(DF.N_Fourier[self.run])
+        self.ell_max = df.Max_ell[self.run]
+        self.N_HD = df.N_HD[self.run]
+        self.N_OD = df.N_OD[self.run]
+        self.N_ID = df.N_ID[self.run]
+        self.N_time = df.N_time[self.run]
+        self.N_Fourier = int(df.N_Fourier[self.run])
 
-        self.Mode_accuracy = DF.Mode_accuracy[self.run]
-        self.BC_at_particle = DF.BC_at_particle[self.run]
-
+        self.Mode_accuracy = df.Mode_accuracy[self.run]
+        self.BC_at_particle = df.BC_at_particle[self.run]
 
         # Internal variables
         _ell_max1 = self.ell_max + 1
         _N_OD1 = self.N_OD + 1
         _N_Fourier_1 = 2 * self.N_Fourier + 1
-
 
         # DOMAIN BOUNDARIES
         self.r_peri = self.p_orbit / (1.0 + self.e_orbit)
@@ -55,20 +52,22 @@ class Physical_Quantities:
         self.rho_peri = r_schwarzschild_to_r_tortoise(self.r_peri)
         self.rho_apo = r_schwarzschild_to_r_tortoise(self.r_apo)
 
-        self.rho_H = DF.rho_H[self.run]
-        self.rho_HC = DF.rho_HC[self.run]
-        self.rho_HS = DF.rho_HS[self.run]
+        self.rho_H = df.rho_H[self.run]
+        self.rho_HC = df.rho_HC[self.run]
+        self.rho_HS = df.rho_HS[self.run]
 
-        self.rho_IS = DF.rho_IS[self.run]
-        self.rho_IC = DF.rho_IC[self.run]
-        self.rho_I = DF.rho_I[self.run]
+        self.rho_IS = df.rho_IS[self.run]
+        self.rho_IC = df.rho_IC[self.run]
+        self.rho_I = df.rho_I[self.run]
 
+        """
+        GRIDS FOR ODE INTEGRATION:
+        Remember we are integrating with respect to rho. Then, our grids use rho as a coordinate
+        Given that the ODEs present singular behaviour both at the Horizon and at Infinity,
+        we start the integration avoiding these points. To that end, we construct initial conditions
+        based on approximate solutions of the ODEs both near the Horizon and near Infinity.
+        """
 
-        # GRIDS FOR ODE INTEGRATION:
-        # NOTE: Remember we are integrating with respect to the rho Coordinate. Then, our grids use this Coordinate.
-        # NOTE: Given that the ODEs present singular behaviour both at the Horizon and at Infinity we start the integration
-        #       avoiding these points. To that end, we construct initial conditions based on approximate solutions of the ODEs
-        #       both near the Horizon and near Infinity.
         epsilon_H = 2.8e-15
         self.rho_H_plus = self.rho_H + epsilon_H
 
@@ -83,26 +82,14 @@ class Physical_Quantities:
         # HYPERBOLOIDAL COMPACTIFICATION: Transition Function Parameters
         # Transition Function/Compactification Parameters
         self.TF = self.TransitionFunction()
-        self.TF.q = DF.q_transition[self.run]
-        self.TF.s = DF.s_transition[self.run]
+        self.TF.q = df.q_transition[self.run]
+        self.TF.s = df.s_transition[self.run]
 
 
         # ARRAYS FOR DIFFERENT VARIABLES
         # Arrays for the Regularization Parameters and Singular part of the Self-Force:
         self.SF_S_r_l_H = np.zeros((_ell_max1, _N_OD1))
         self.SF_S_r_l_I = np.zeros((_ell_max1, _N_OD1))
-
-        self.A_t_H = np.zeros((_ell_max1, _N_OD1))
-        self.A_t_I = np.zeros((_ell_max1, _N_OD1))
-
-        self.A_r_H = np.zeros((_ell_max1, _N_OD1))
-        self.A_r_I = np.zeros((_ell_max1, _N_OD1))
-
-        self.B_t = np.zeros((_ell_max1, _N_OD1))
-        self.B_r = np.zeros((_ell_max1, _N_OD1))
-        self.B_phi = np.zeros((_ell_max1, _N_OD1))
-
-        self.D_r = np.zeros((_ell_max1, _N_OD1))
 
         # Arrays for the Computation of the Radial Component of the Bare (full) Self-Force:
         # We have the harmonic components (l,m), which in the Frequency Domain are obtained after adding up the Fourier Modes
@@ -179,17 +166,19 @@ class Physical_Quantities:
         # NOTE: The code forces N_time to be even
         self.N_time_half = self.N_time // 2
 
-        # Arrays for the (Spectra and non-Spectrall) Time Grids:
-        #   - Spectral Coordinates and Weights
-        #   - Spectral Time: t_p_f -> [0,T_r] (full period!)
-        #   - Spectral Schwarzschild and Tortoise Radial Coordinates, Angular Radial and Azimuthal (chi and phi) motion:
-        #       r_p_f, rs_p_f, chi_p_f, phi_p_f
-        #   - Spectral Coefficients associated with:
-        #       t_p_f, r_p_f, rs_p_f, chi_p_f, phi_p_f
-        #   - Non-Spectral Time: t_p -> [0,Tr/2] (half period!)
-        #   - Uniform Radial grid Schwarzschild Coordinate: Uniformly distributed over [r_peri,r_apo]: r_p
-        #   - Tortoise Radial coordinate, Angular coordinates for the radial (chi) and Azimuthal (phi) motion:
-        #       rs_p, chi_p, phi_p
+        """
+        Arrays for the (Spectra and non-Spectrall) Time Grids:
+          - Spectral Coordinates and Weights
+          - Spectral Time: t_p_f -> [0,T_r] (full period!)
+          - Spectral Schwarzschild and Tortoise Radial Coordinates, Angular Radial and Azimuthal (chi and phi) motion:
+              r_p_f, rs_p_f, chi_p_f, phi_p_f
+          - Spectral Coefficients associated with:
+              t_p_f, r_p_f, rs_p_f, chi_p_f, phi_p_f
+          - Non-Spectral Time: t_p -> [0,Tr/2] (half period!)
+          - Uniform Radial grid Schwarzschild Coordinate: Uniformly distributed over [r_peri,r_apo]: r_p
+          - Tortoise Radial coordinate, Angular coordinates for the radial (chi) and Azimuthal (phi) motion:
+              rs_p, chi_p, phi_p
+        """
         self.Xt = np.zeros(self.N_time + 1)
         self.Wt = (np.pi / (self.N_time)) * np.ones(self.N_time + 1)
 
@@ -238,8 +227,8 @@ class Physical_Quantities:
             y0,
             self.t_p_f,
             args=(self.p_orbit, self.e_orbit),
-            rtol=1.0e-13,
-            atol=1.0e-14,
+            rtol=1e-13,
+            atol=1e-14,
         )
 
         self.chi_p_f = self.ode_sol[:, 0]
@@ -273,8 +262,7 @@ class Physical_Quantities:
                          "SF_F_r_l_H", "SF_F_r_l_I", "SF_S_r_l_H", "SF_S_r_l_I"]
 
         if self.save:
-            self.var_list += ["R_HD", "R_ID", "Q_HD", "Q_ID",
-                              "rho_HD", "rho_ID" ]
+            self.var_list += ["R_HD", "R_ID", "Q_HD", "Q_ID", "rho_HD", "rho_ID"]
 
     # ------------------------------------------------------------------------
     # Functions

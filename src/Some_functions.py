@@ -20,10 +20,10 @@ def compute_spectral_coefficients(Ui, imag=False):
         An = np.zeros(N + 1, dtype=np.complex128)
 
     # Computing Spectral Coefficients:
-    for nn in range(0, N + 1, 1):
+    for nn in range(0, N + 1):
         An[nn] = Ui[0] + ((-1) ** nn) * Ui[N]
 
-        for kk in range(1, N, 1):
+        for kk in range(1, N):
             An[nn] = An[nn] + 2.0 * (np.cos((np.pi) * kk * nn / N)) * Ui[kk]
         if nn == 0:
             An[nn] = 0.5 * An[nn] / N
@@ -35,7 +35,7 @@ def compute_spectral_coefficients(Ui, imag=False):
     return An
 
 
-def value_at_a_point(X, An):
+def value_at_a_point(x, An):
     """Evaluates a spectral function at a given spectral point given
     the value of the Spectral Coordinate and the set of Spectral Coefficients of the Function."""
 
@@ -43,17 +43,17 @@ def value_at_a_point(X, An):
     N = An.size - 1
 
     # Initializing the value
-    Value_at_Point = 0.0
+    value_at_point = 0.0
 
     # Adding the contribution of each Spectral Mode:
-    for ns in range(0, N + 1, 1):
+    for ns in range(0, N + 1):
 
         # Value of the n-th Chebyshev Polynomial at the given spectral coordinate:
-        T_nn_X = special.eval_chebyt(ns, X)
+        T_nn_x = special.eval_chebyt(ns, x)
 
-        Value_at_Point = Value_at_Point + An[ns] * T_nn_X
+        value_at_point = value_at_point + An[ns] * T_nn_x
 
-    return Value_at_Point
+    return value_at_point
 
 
 def spectral_time_integration(integrand, T_r):
@@ -77,43 +77,41 @@ def spectral_time_integration(integrand, T_r):
     #  Computing Integral
     integral_value = 0.0
 
-    for k in range(0, Nmax + 1, 1):
+    for k in range(0, Nmax + 1):
         integral_value = integral_value - An[2 * k] / (4 * k ** 2 - 1)
     integral_value = 0.5 * T_r * integral_value
 
     return integral_value
 
 
-def run_basic_tests(DF, run):
+def run_basic_tests(df, run):
     """Test consistency of Run Parameters"""
 
-    if DF.e_orbit[run] < 1.0e-14:
+    if df.e_orbit[run] < 1.0e-14:
         logging.error("This version of the FRED Code computes the Self-Force for\n")
         logging.error("Eccentric Orbits. For Circular Orbits use an adapted version\n")
         logging.error("of the FRED Code (version 2.0).  Thanks!\n")
         fred_goodbye()
 
-    if DF.N_time[run] % 2 != 0:
+    if df.N_time[run] % 2 != 0:
         # print("The number of Points in the Orbital Domain, 'N_OD', must be even.\n")
         logging.error(
             "The number of Collocation Points in Time, 'N_time', must be even."
         )
         fred_goodbye()
 
-    if DF.BC_at_particle[run] != "R" and DF.BC_at_particle[run] != "Q":
+    if df.BC_at_particle[run] != "R" and df.BC_at_particle[run] != "Q":
         logging.error("The Parameter 'BC_at_particle' has an illegal value.\n")
         logging.error("It must be either 'R' or 'Q'. Thanks!\n")
         fred_goodbye()
-
-    return
 
 
 def Jump_Value(ll, mm, nf, PP):
     """Compute the Fourier Modes of the Jumps [induced by the presence of the Particle]"""
 
     # Computing the Jump Global Coefficient [ONLY lm dependence]
-    # [NOTE: The factor 8.0 instead of 4.0 is because the integration routine 'spectral_time_integration' uses the interval (0,T_r/2), not (0,T_r)]
-    gen_coeff = -8.0 * np.pi * PP.particle_charge * PP.Ep * PP.d_lm[ll, mm] / PP.T_r
+    # Factor 8 instead of 4 because routine 'spectral_time_integration' uses interval (0,T_r/2), not (0,T_r)
+    gen_coeff = -8 * np.pi * PP.particle_charge * PP.Ep * PP.d_lm[ll, mm] / PP.T_r
 
     # Computing the Fourier mode of the Jump for (ll,mm,nf)
     basic_integrand = (
@@ -123,9 +121,9 @@ def Jump_Value(ll, mm, nf, PP):
         * np.exp(1j * nf * PP.omega_r * PP.t_p_f)
     )
 
-    Jump_lmn = gen_coeff * spectral_time_integration(basic_integrand, PP.T_r)
+    jump_lmn = gen_coeff * spectral_time_integration(basic_integrand, PP.T_r)
 
-    return Jump_lmn
+    return jump_lmn
 
 
 def show_parameters(PP, run):
@@ -158,7 +156,6 @@ def show_parameters(PP, run):
     logging.info("-----------  EXTRA INFORMATION  ----------------------------")
     logging.info("Radial Period:  T_r    = %f", PP.T_r)
     logging.info("Azimutal Period: T_phi = %f", PP.T_phi)
-    return
 
 
 def fred_goodbye():
@@ -167,7 +164,7 @@ def fred_goodbye():
     logging.info("Thanks for using the FRED Code (version 2.0)")
     logging.info("FRED Code (c) 2012-2021 C.F. Sopuerta")
     logging.info("Goodbye!")
-    quit()
+    sys.exit()
 
 
 def logging_func(filename, log_print):
@@ -198,4 +195,4 @@ def logging_func(filename, log_print):
         logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
     if exists:
-        logging.warning(f"{logfilename} already exists, appending to file")
+        logging.warning("%s already exists, appending to file", logfilename)
