@@ -111,7 +111,7 @@ def Jump_Value(ll, mm, nf, PP):
 
     # Computing the Jump Global Coefficient [ONLY lm dependence]
     # Factor 8 instead of 4 because routine 'spectral_time_integration' uses interval (0,T_r/2), not (0,T_r)
-    gen_coeff = -8 * np.pi * PP.particle_charge * PP.Ep * PP.d_lm[ll, mm] / PP.T_r
+    gen_coeff = -8 * np.pi * PP.charge * PP.Ep * PP.d_lm[ll, mm] / PP.T_r
 
     # Computing the Fourier mode of the Jump for (ll,mm,nf)
     basic_integrand = (
@@ -139,7 +139,7 @@ def show_parameters(PP, run):
     logging.info("N_Fourier              = %d", PP.N_Fourier)
     logging.info("field_spin             = %f", PP.field_spin)
     logging.info("mass_ratio             = %f", PP.mass_ratio)
-    logging.info("particle_charge        = %f", PP.particle_charge)
+    logging.info("particle_charge        = %f", PP.charge)
     logging.info("e_orbit                = %f", PP.e_orbit)
     logging.info("p_orbit                = %f", PP.p_orbit)
     logging.info("rho_horizon            = %f", PP.rho_H)

@@ -23,7 +23,7 @@ class Physical_Quantities:
         self.save = save
 
         # PHYSICAL PARAMETERS OF THE RUN
-        self.particle_charge = df.particle_charge[self.run]
+        self.charge = df.particle_charge[self.run]
         self.mass_ratio = df.mass_ratio[self.run]
         self.field_spin = df.field_spin[self.run]
         self.sigma_spin = 1.0 - (self.field_spin) ** 2
@@ -156,18 +156,15 @@ class Physical_Quantities:
         e2 = (self.e_orbit) ** 2
 
         self.Ep = np.sqrt(
-            ((self.p_orbit - 2.0 - 2.0 * self.e_orbit) * (self.p_orbit - 2.0 + 2.0 * self.e_orbit))
-            / ((self.p_orbit) * (self.p_orbit - 3.0 - e2))
+            ((self.p_orbit - 2 - 2 * self.e_orbit) * (self.p_orbit - 2 + 2 * self.e_orbit))
+            / ((self.p_orbit) * (self.p_orbit - 3 - e2))
         )
         self.Lp = (self.p_orbit) / (np.sqrt(self.p_orbit - 3.0 - e2))
 
         # Computing the Orbital Trajectory solving the ODEs for the orbital motion of the SCO around the MBH
-        # Computing N_time_half:
-        # NOTE: The code forces N_time to be even
-        self.N_time_half = self.N_time // 2
 
         """
-        Arrays for the (Spectra and non-Spectrall) Time Grids:
+        Arrays for the (Spectral and non-Spectral) Time Grids:
           - Spectral Coordinates and Weights
           - Spectral Time: t_p_f -> [0,T_r] (full period!)
           - Spectral Schwarzschild and Tortoise Radial Coordinates, Angular Radial and Azimuthal (chi and phi) motion:
@@ -179,15 +176,7 @@ class Physical_Quantities:
           - Tortoise Radial coordinate, Angular coordinates for the radial (chi) and Azimuthal (phi) motion:
               rs_p, chi_p, phi_p
         """
-        self.Xt = np.zeros(self.N_time + 1)
-        self.Wt = (np.pi / (self.N_time)) * np.ones(self.N_time + 1)
-
-        self.t_p_f = np.zeros(self.N_time + 1)
-        self.r_p_f = np.zeros(self.N_time + 1)
-        self.rs_p_f = np.zeros(self.N_time + 1)
-        self.chi_p_f = np.zeros(self.N_time + 1)
-        self.phi_p_f = np.zeros(self.N_time + 1)
-
+        # TODO these are used on Schwarzschild without changing
         self.An_t_p_f = np.zeros(self.N_time + 1)
         self.An_r_p_f = np.zeros(self.N_time + 1)
         self.An_rs_p_f = np.zeros(self.N_time + 1)
@@ -195,33 +184,32 @@ class Physical_Quantities:
         self.An_phi_p_f = np.zeros(self.N_time + 1)
 
         self.t_p = np.zeros(_N_OD1)
-        self.r_p = np.zeros(_N_OD1)
         self.rs_p = np.zeros(_N_OD1)
         self.chi_p = np.zeros(_N_OD1)
         self.phi_p = np.zeros(_N_OD1)
 
         # Computation of the Chebyshev-Lobatto Grid and Weights:
-        self.Xt[0] = -1.0
-        self.Xt[self.N_time] = 1.0
+        Xt = np.zeros(self.N_time + 1)
+        Xt[0] = -1.0
+        Xt[self.N_time] = 1.0
 
-        self.Wt[0] = 0.5 * (self.Wt[0])
-        self.Wt[self.N_time] = 0.5 * (self.Wt[self.N_time])
+        Wt = (np.pi / (self.N_time)) * np.ones(self.N_time + 1)
+        Wt[0] = 0.5 * (Wt[0])
+        Wt[self.N_time] = 0.5 * (Wt[self.N_time])
 
-        for k in range(1, self.N_time_half):
-            self.Xt[k] = -np.cos(k * np.pi / (self.N_time))
-            self.Xt[self.N_time - k] = -self.Xt[k]
-        self.Xt[self.N_time_half] = 0.0
+        N_time_half = self.N_time // 2  # code forces N_time to be even
+        for k in range(1, N_time_half):
+            Xt[k] = -np.cos(k * np.pi / (self.N_time))
+            Xt[self.N_time - k] = -Xt[k]
+        Xt[N_time_half] = 0.0
 
         # Integration Times at which we must solve the Orbit ODEs [From t = 0 to t = Tr]:
-        self.t_p_f = 0.5 * (self.T_r) * (1.0 + self.Xt)
+        self.t_p_f = 0.5 * (self.T_r) * (1.0 + Xt)
 
         # Solving the Orbit ODEs for the interval t in [0, Tr]:
-        # NOTE: The values of chi_p_0 and phi_p_0 are hardwired in this version of the code because
-        #       we want to start at r_p = r_peri and phi
-        self.chi_p_0 = 0.0
-        self.phi_p_0 = 0.0
+        # chi_p_0 and phi_p_0 are hardwired to 0 because we want to start at r_p = r_peri
 
-        y0 = [self.chi_p_0, self.phi_p_0]
+        y0 = [0, 0]
         self.ode_sol = odeint(
             sco_odes_rhs,
             y0,
@@ -253,14 +241,12 @@ class Physical_Quantities:
                 # Checking whether ell+m is even (for ell+m odd the contribution is zero)
                 if (ll + mm) % 2 == 0:
                     self.d_lm[ll, mm] = special.sph_harm(mm, ll, 0.0, 0.5 * np.pi)
-
                 else:
                     self.d_lm[ll, mm] = 0.0
 
         # List of variables to be saved / retrieved with pickle
         self.var_list = ["R_H", "R_I", "Q_H", "Q_I", "rho_HOD", "J_lmn",
                          "SF_F_r_l_H", "SF_F_r_l_I", "SF_S_r_l_H", "SF_S_r_l_I"]
-
         if self.save:
             self.var_list += ["R_HD", "R_ID", "Q_HD", "Q_ID", "rho_HD", "rho_ID"]
 
@@ -275,7 +261,7 @@ class Physical_Quantities:
         Add contribution of the m_Mode to the l_Mode of the Radial Component"""
 
         weight = (
-            self.particle_charge / self.r_p
+            self.charge / self.r_p
             * self.d_lm[ll, mm]
             * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
         )

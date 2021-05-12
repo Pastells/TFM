@@ -237,46 +237,42 @@ def singular_part(PP, run):
     # Computing rdot:
     q1 = PP.p_orbit / PP.r_p
     q3 = PP.p_orbit - 2 * q1
-    q4 = np.sqrt((PP.p_orbit - 2) ** 2 - 4 * (PP.e_orbit ** 2))
+    q4 = np.sqrt((PP.p_orbit - 2) ** 2 - 4 * PP.e_orbit ** 2)
     q5 = q3 * (q1 ** 2) / (q4 * PP.p_orbit)
 
     chi_dot = q5 * (np.sqrt(PP.p_orbit - 4 - 2 * q1)) / (PP.p_orbit)
 
-    dr_p_now_dtau = (
+    dr_p_dtau = (
         PP.Ep
         * PP.r_p ** 2
         * PP.e_orbit
         * np.sin(PP.chi_p)
         * chi_dot
-        / (f_p * (PP.p_orbit))
+        / (f_p * PP.p_orbit)
     )
 
     # Computing other relevant quantities:
-    qaux1 = 1 + ((PP.Lp) ** 2) / (PP.r_p ** 2)
-    qaux2 = (qaux1) ** (1.5)
-    alpha = ((PP.Lp) ** 2) / (PP.r_p ** 2 + (PP.Lp) ** 2)
+    qaux1 = 1 + PP.Lp ** 2 / PP.r_p ** 2
+    qaux2 = qaux1 ** (1.5)
+    alpha = PP.Lp ** 2 / (PP.r_p ** 2 + PP.Lp ** 2)
 
     # Computing the Value of some Hypergeometric Functions:
-    ff_1d2 = special.hyp2f1(0.5, 0.5, 1.0, alpha)
-    ff_m1d2 = special.hyp2f1(-0.5, 0.5, 1.0, alpha)
+    ff_1d2 = special.hyp2f1(0.5, 0.5, 1, alpha)
+    ff_m1d2 = special.hyp2f1(-0.5, 0.5, 1, alpha)
 
     # Computing Regularization Parameters, not dependent on ell:
     A_r_H = PP.Ep / (f_p * qaux1)
     A_r_I = -PP.Ep / (f_p * qaux1)
 
     B_r = (
-        (dr_p_now_dtau ** 2 - 2 * PP.Ep ** 2) * ff_1d2
-        + (dr_p_now_dtau ** 2 + PP.Ep ** 2) * ff_m1d2
+        (dr_p_dtau ** 2 - 2 * PP.Ep ** 2) * ff_1d2
+        + (dr_p_dtau ** 2 + PP.Ep ** 2) * ff_m1d2
     ) / (2 * f_p * qaux2)
 
     # Computing Singular Part of the Self-Force (only the radial component at the moment):
     for ll in range(PP.ell_max + 1):
-        PP.SF_S_r_l_H[ll] = (
-            PP.particle_charge * ((ll + 0.5) * A_r_H[ll] + B_r[ll]) / (PP.r_p ** 2)
-        )
-        PP.SF_S_r_l_I[ll] = (
-            PP.particle_charge * ((ll + 0.5) * A_r_I[ll] + B_r[ll]) / (PP.r_p ** 2)
-        )
+        PP.SF_S_r_l_H[ll] = PP.charge * ((ll + 0.5) * A_r_H + B_r) / (PP.r_p ** 2)
+        PP.SF_S_r_l_I[ll] = PP.charge * ((ll + 0.5) * A_r_I + B_r) / (PP.r_p ** 2)
 
     logging.info("FRED RUN %d: Singular Part of the Self-Force Computed", run)
 
