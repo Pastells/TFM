@@ -103,49 +103,7 @@ def rstar_to_rsch(rstar):
     return np.real(r_sch)
 
 
-# TODO check all _p_at_x functions
-
-
-# TODO: move to class
-def obtain_coefs(PP):
-    # Coefficients from values at known positions
-    n = PP.N_time
-    for k in range(n + 1):
-        # Vector with the n-th Chebyshev Polynomials at the given spectral coordinate:
-        # T_i_x = np.array([special.eval_chebyt(i, PP.r_p_f[k]) for i in range(n + 1)])
-        T_i_x = np.array([special.eval_chebyt(i, PP.Xt[k]) for i in range(1, n + 2)])
-        PP.Ai_t_p_f += PP.t_p_f[k] * T_i_x
-        PP.Ai_r_p_f += PP.r_p_f[k] * T_i_x
-        PP.Ai_rs_p_f += PP.rs_p_f[k] * T_i_x
-        PP.Ai_phi_p_f += PP.phi_p_f[k] * T_i_x
-        PP.Ai_chi_p_f += PP.chi_p_f[k] * T_i_x
-
-    # Normalization
-    PP.Ai_t_p_f = PP.Ai_t_p_f * 2 / (n + 1)
-    PP.Ai_r_p_f = PP.Ai_r_p_f * 2 / (n + 1)
-    PP.Ai_rs_p_f = PP.Ai_rs_p_f * 2 / (n + 1)
-    PP.Ai_phi_p_f = PP.Ai_phi_p_f * 2 / (n + 1)
-    PP.Ai_chi_p_f = PP.Ai_chi_p_f * 2 / (n + 1)
-
-
-def non_spectral_t_phi(PP):
-    # Values at extremes
-    obtain_coefs(PP)
-    PP.t_p[0] = PP.t_p_f[0]
-    PP.phi_p[0] = PP.phi_p_f[0]
-    PP.t_p[PP.N_OD] = PP.t_p_f[PP.N_time]
-    PP.phi_p[PP.N_OD] = PP.phi_p_f[PP.N_time]
-
-    # Values at spectral grid
-    for nn in range(PP.N_OD + 1):
-        PP.t_p[nn] = 0
-        PP.phi_p[nn] = 0
-        for jj in range(PP.N_time + 1):
-            T_jj_x = special.eval_chebyt(jj, PP.r_p[nn])
-            PP.t_p[nn] += PP.Ai_t_p_f[jj] * T_jj_x
-            PP.phi_p[nn] += PP.Ai_phi_p_f[jj] * T_jj_x
-
-
+# TODO this works, together with chebyshev_coefs function in class
 def eval_at_x(PP, var_str, x):
     """Evaluate variable at an arbitrary value of the Time Spectral Coordinate
     var_str: string with name of variable"""
