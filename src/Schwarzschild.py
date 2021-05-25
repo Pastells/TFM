@@ -103,81 +103,71 @@ def rstar_to_rsch(rstar):
     return np.real(r_sch)
 
 
-# TODO check all _p_at_X functions
+# TODO check all _p_at_x functions
 
 
-def t_p_at_X(X, PP):
-    """This function evaluates the Time Coordinate at an arbitrary value of the Time Spectral Coordinate"""
-    # Initializing the value
-    t_p_X = 0.0
+# TODO: move to class
+def obtain_coefs(PP):
+    # Coefficients from values at known positions
+    n = PP.N_time
+    for k in range(n + 1):
+        # Vector with the n-th Chebyshev Polynomials at the given spectral coordinate:
+        # T_i_x = np.array([special.eval_chebyt(i, PP.r_p_f[k]) for i in range(n + 1)])
+        T_i_x = np.array([special.eval_chebyt(i, PP.Xt[k]) for i in range(1, n + 2)])
+        PP.Ai_t_p_f += PP.t_p_f[k] * T_i_x
+        PP.Ai_r_p_f += PP.r_p_f[k] * T_i_x
+        PP.Ai_rs_p_f += PP.rs_p_f[k] * T_i_x
+        PP.Ai_phi_p_f += PP.phi_p_f[k] * T_i_x
+        PP.Ai_chi_p_f += PP.chi_p_f[k] * T_i_x
+
+    # Normalization
+    PP.Ai_t_p_f = PP.Ai_t_p_f * 2 / (n + 1)
+    PP.Ai_r_p_f = PP.Ai_r_p_f * 2 / (n + 1)
+    PP.Ai_rs_p_f = PP.Ai_rs_p_f * 2 / (n + 1)
+    PP.Ai_phi_p_f = PP.Ai_phi_p_f * 2 / (n + 1)
+    PP.Ai_chi_p_f = PP.Ai_chi_p_f * 2 / (n + 1)
+
+
+def non_spectral_t_phi(PP):
+    # Values at extremes
+    obtain_coefs(PP)
+    PP.t_p[0] = PP.t_p_f[0]
+    PP.phi_p[0] = PP.phi_p_f[0]
+    PP.t_p[PP.N_OD] = PP.t_p_f[PP.N_time]
+    PP.phi_p[PP.N_OD] = PP.phi_p_f[PP.N_time]
+
+    # Values at spectral grid
+    for nn in range(PP.N_OD + 1):
+        PP.t_p[nn] = 0
+        PP.phi_p[nn] = 0
+        for jj in range(PP.N_time + 1):
+            T_jj_x = special.eval_chebyt(jj, PP.r_p[nn])
+            PP.t_p[nn] += PP.Ai_t_p_f[jj] * T_jj_x
+            PP.phi_p[nn] += PP.Ai_phi_p_f[jj] * T_jj_x
+
+
+def eval_at_x(PP, var_str, x):
+    """Evaluate variable at an arbitrary value of the Time Spectral Coordinate
+    var_str: string with name of variable"""
+    var_x = 0.0
+
+    # Coefficients for vairable
+    Ai_var = getattr(PP, "Ai_" + var_str + "_f")
 
     # Adding the contribution of each Spectral Mode:
-    for ns in range(0, PP.N_time + 1, 1):
+    for ii in range(PP.N_time + 1):
         # Value of the n-th Chebyshev Polynomial at the given spectral coordinate:
-        T_nn_X = special.eval_chebyt(ns, X)
-        t_p_X = t_p_X + PP.An_t_p_f[ns] * T_nn_X
+        T_ii_x = special.eval_chebyt(ii, x)
+        var_x += Ai_var[ii] * T_ii_x
 
-    return t_p_X
-
-
-def r_p_at_X(X, PP):
-    """This function evaluates the Schwarzschild Radial Coordinate at an arbitrary value of the Time Spectral Coordinate"""
-    # Initializing the value
-    r_p_X = 0.0
-
-    # Adding the contribution of each Spectral Mode:
-    for ns in range(0, PP.N_time + 1, 1):
-        # Value of the n-th Chebyshev Polynomial at the given spectral coordinate:
-        T_nn_X = special.eval_chebyt(ns, X)
-        r_p_X = r_p_X + PP.An_r_p_f[ns] * T_nn_X
-
-    return r_p_X
+    return var_x
 
 
-def zero_of_r_p_at_X(X, r_goal, PP):
-    """This function is defined to be used by the scipy scalar minimization routine to find the X that correspond to a given
+def zero_of_r_p_at_x(x, r_goal, PP):
+    """Used by the scipy scalar minimization routine to find the x that correspond to a given
     value of the Schwarzschild radial coordinate r, called 'r_goal'"""
-
-    return np.abs(r_p_at_X(X, PP) - r_goal)
-
-
-def rs_p_at_X(X, PP):
-    """This function evaluates the Tortoise Radial Coordinate at an arbitrary value of the Time Spectral Coordinate"""
-    # Initializing the value
-    rs_p_X = 0.0
-
-    # Adding the contribution of each Spectral Mode:
-    for ns in range(0, PP.N_time + 1, 1):
-        # Value of the n-th Chebyshev Polynomial at the given spectral coordinate:
-        T_nn_X = special.eval_chebyt(ns, X)
-        rs_p_X = rs_p_X + PP.An_rs_p_f[ns] * T_nn_X
-
-    return rs_p_X
-
-
-def chi_p_at_X(X, PP):
-    """This function evaluates the Angle associated with the PERIODIC radial motion of bounded geodesics at an arbitrary value of the Time Spectral Coordinate"""
-    # Initializing the value
-    chi_p_X = 0.0
-
-    # Adding the contribution of each Spectral Mode:
-    for ns in range(0, PP.N_time + 1, 1):
-        # Value of the n-th Chebyshev Polynomial at the given spectral coordinate:
-        T_nn_X = special.eval_chebyt(ns, X)
-        chi_p_X = chi_p_X + PP.An_chi_p_f[ns] * T_nn_X
-
-    return chi_p_X
-
-
-def phi_p_at_X(X, PP):
-    """This function evaluates the Azimuthal Coordinate at an arbitrary value of the Time Spectral Coordinate"""
-    # Initializing the value
-    phi_p_X = 0.0
-
-    # Adding the contribution of each Spectral Mode:
-    for ns in range(0, PP.N_time + 1, 1):
-        # Value of the n-th Chebyshev Polynomial at the given spectral coordinate:
-        T_nn_X = special.eval_chebyt(ns, X)
-        phi_p_X = phi_p_X + PP.An_phi_p_f[ns] * T_nn_X
-
-    return phi_p_X
+    r_p = eval_at_x(PP, "r_p", x)
+    # abs_error = np.abs(a - r_goal)
+    # print(x, r_p, r_goal, abs_error)
+    error = r_p - r_goal
+    return error

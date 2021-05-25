@@ -176,22 +176,22 @@ class Physical_Quantities:
           - Tortoise Radial coordinate, Angular coordinates for the radial (chi) and Azimuthal (phi) motion:
               rs_p, chi_p, phi_p
         """
-        # TODO these are used on Schwarzschild without changing
-        self.An_t_p_f = np.zeros(self.N_time + 1)
-        self.An_r_p_f = np.zeros(self.N_time + 1)
-        self.An_rs_p_f = np.zeros(self.N_time + 1)
-        self.An_chi_p_f = np.zeros(self.N_time + 1)
-        self.An_phi_p_f = np.zeros(self.N_time + 1)
+        # Coefficients for expanding in Chebyshev polynomials
+        self.Ai_t_p_f   = np.zeros(self.N_time + 1)
+        self.Ai_r_p_f   = np.zeros(self.N_time + 1)
+        self.Ai_rs_p_f  = np.zeros(self.N_time + 1)
+        self.Ai_chi_p_f = np.zeros(self.N_time + 1)
+        self.Ai_phi_p_f = np.zeros(self.N_time + 1)
 
-        self.t_p = np.zeros(_N_OD1)
-        self.rs_p = np.zeros(_N_OD1)
+        self.t_p   = np.zeros(_N_OD1)
+        self.rs_p  = np.zeros(_N_OD1)
         self.chi_p = np.zeros(_N_OD1)
         self.phi_p = np.zeros(_N_OD1)
 
         # Computation of the Chebyshev-Lobatto Grid and Weights:
-        Xt = np.zeros(self.N_time + 1)
-        Xt[0] = -1.0
-        Xt[self.N_time] = 1.0
+        self.Xt = np.zeros(self.N_time + 1)
+        self.Xt[0] = -1.0
+        self.Xt[self.N_time] = 1.0
 
         Wt = (np.pi / (self.N_time)) * np.ones(self.N_time + 1)
         Wt[0] = 0.5 * (Wt[0])
@@ -199,12 +199,15 @@ class Physical_Quantities:
 
         N_time_half = self.N_time // 2  # code forces N_time to be even
         for k in range(1, N_time_half):
-            Xt[k] = -np.cos(k * np.pi / (self.N_time))
-            Xt[self.N_time - k] = -Xt[k]
-        Xt[N_time_half] = 0.0
+            self.Xt[k] = -np.cos(k * np.pi / (self.N_time))
+            self.Xt[self.N_time - k] = -self.Xt[k]
+        self.Xt[N_time_half] = 0.0
+
+        print(self.Xt)
 
         # Integration Times at which we must solve the Orbit ODEs [From t = 0 to t = Tr]:
-        self.t_p_f = 0.5 * (self.T_r) * (1.0 + Xt)
+        # TODO: llavors el 0.5 no caldria
+        self.t_p_f = 0.5 * (self.T_r) * (1.0 + self.Xt)
 
         # Solving the Orbit ODEs for the interval t in [0, Tr]:
         # chi_p_0 and phi_p_0 are hardwired to 0 because we want to start at r_p = r_peri
@@ -228,8 +231,12 @@ class Physical_Quantities:
         # Computation of the Particle Radial Location [Tortoise Coordinate]:
         self.rs_p_f = self.r_p_f - 2.0 * np.log(0.5 * (self.r_p_f) - 1.0)
 
-        # Uniform Grid for the Schwarzschild Radial Coordinate: r_p
+        # Uniform Grid for the Schwarzschild and Tortoise Radial Coordinates: r_p, rs_p
         self.r_p = self.r_peri + ((self.r_apo - self.r_peri) / self.N_OD) * np.arange(_N_OD1)
+        self.rs_p = self.r_p - 2.0 * np.log(0.5 * (self.r_p) - 1.0)
+
+        print(self.r_p_f)
+        print(self.r_p)
 
         # Arrays for the Fourier Modes of the Jumps:
         self.J_lmn = np.zeros((self.ell_max+1, self.ell_max+1, 2*self.N_Fourier+1), dtype=np.complex128)
@@ -373,9 +380,9 @@ class Physical_Quantities:
         else:
             folder = "results"
 
-        def _pickle_dump(string, directory=folder):
-            object_to_save = getattr(self, string)
-            object_name = directory + "/" + string + ".pkl"
+        def _pickle_dump(var_str, directory=folder):
+            object_to_save = getattr(self, var_str)
+            object_name = directory + "/" + var_str + ".pkl"
             pickle.dump(object_to_save, open(object_name, "wb"))
 
         for var in self.var_list:
@@ -384,10 +391,10 @@ class Physical_Quantities:
     # ------------------------------------------------------------------------
 
     def read(self, folder="results"):
-        def _pickle_load(string, directory=folder):
-            object_name = directory + "/" + string + ".pkl"
+        def _pickle_load(var_str, directory=folder):
+            object_name = directory + "/" + var_str + ".pkl"
             object_to_load = pickle.load(open(object_name, "rb"))
-            setattr(self, string, object_to_load)
+            setattr(self, var_str, object_to_load)
 
         for var in self.var_list:
             _pickle_load(var)
