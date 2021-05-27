@@ -281,29 +281,28 @@ class Physical_Quantities:
     def chebyshev_coefs(self):
         """Coefficients for expanding in Chebyshev polynomials
         Obtained from values at known positions"""
-        self.Ai_t_p_f   = np.zeros(self.N_time + 1)
-        self.Ai_r_p_f   = np.zeros(self.N_time + 1)
-        self.Ai_rs_p_f  = np.zeros(self.N_time + 1)
-        self.Ai_chi_p_f = np.zeros(self.N_time + 1)
-        self.Ai_phi_p_f = np.zeros(self.N_time + 1)
+        self.An_t_p_f   = np.zeros(self.N_time + 1)
+        self.An_r_p_f   = np.zeros(self.N_time + 1)
+        self.An_rs_p_f  = np.zeros(self.N_time + 1)
+        self.An_chi_p_f = np.zeros(self.N_time + 1)
+        self.An_phi_p_f = np.zeros(self.N_time + 1)
 
         n = self.N_time
         for k in range(n + 1):
             # Vector with the n-th Chebyshev Polynomials at the given spectral coordinate:
-            # T_i_x = np.array([special.eval_chebyt(i, self.r_p_f[k]) for i in range(n + 1)])
-            T_i_x = np.array([special.eval_chebyt(i, self.Xt[k]) for i in range(1, n + 2)])
-            self.Ai_t_p_f   += self.t_p_f[k]   * T_i_x
-            self.Ai_r_p_f   += self.r_p_f[k]   * T_i_x
-            self.Ai_rs_p_f  += self.rs_p_f[k]  * T_i_x
-            self.Ai_phi_p_f += self.phi_p_f[k] * T_i_x
-            self.Ai_chi_p_f += self.chi_p_f[k] * T_i_x
+            T_n_x = np.array([special.eval_chebyt(i, self.Xt[k]) for i in range(1, n + 2)])
+            self.An_t_p_f   += self.t_p_f[k]   * T_n_x
+            self.An_r_p_f   += self.r_p_f[k]   * T_n_x
+            self.An_rs_p_f  += self.rs_p_f[k]  * T_n_x
+            self.An_phi_p_f += self.phi_p_f[k] * T_n_x
+            self.An_chi_p_f += self.chi_p_f[k] * T_n_x
 
         # Normalization
-        self.Ai_t_p_f   = self.Ai_t_p_f   * 2 / (n + 1)
-        self.Ai_r_p_f   = self.Ai_r_p_f   * 2 / (n + 1)
-        self.Ai_rs_p_f  = self.Ai_rs_p_f  * 2 / (n + 1)
-        self.Ai_phi_p_f = self.Ai_phi_p_f * 2 / (n + 1)
-        self.Ai_chi_p_f = self.Ai_chi_p_f * 2 / (n + 1)
+        self.An_t_p_f   = self.An_t_p_f   * 2 / (n + 1)
+        self.An_r_p_f   = self.An_r_p_f   * 2 / (n + 1)
+        self.An_rs_p_f  = self.An_rs_p_f  * 2 / (n + 1)
+        self.An_phi_p_f = self.An_phi_p_f * 2 / (n + 1)
+        self.An_chi_p_f = self.An_chi_p_f * 2 / (n + 1)
 
     # ------------------------------------------------------------------------
 

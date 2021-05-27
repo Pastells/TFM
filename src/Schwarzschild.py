@@ -110,13 +110,13 @@ def eval_at_x(PP, var_str, x):
     var_x = 0.0
 
     # Coefficients for vairable
-    Ai_var = getattr(PP, "Ai_" + var_str + "_f")
+    An_var = getattr(PP, "An_" + var_str + "_f")
 
     # Adding the contribution of each Spectral Mode:
     for ii in range(PP.N_time + 1):
         # Value of the n-th Chebyshev Polynomial at the given spectral coordinate:
-        T_ii_x = special.eval_chebyt(ii, x)
-        var_x += Ai_var[ii] * T_ii_x
+        T_n_x = special.eval_chebyt(ii, x)
+        var_x += An_var[ii] * T_n_x
 
     return var_x
 
