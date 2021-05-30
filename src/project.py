@@ -7,13 +7,8 @@ import traceback
 import argparse
 import pandas as pd
 import numpy as np
-from scipy.optimize import minimize_scalar, root
 from class_SF_Physics import Physical_Quantities
-from Some_functions import (
-    run_basic_tests,
-    show_parameters,
-)
-from Schwarzschild import zero_of_r_p_at_x, eval_at_x
+from Some_functions import run_basic_tests, show_parameters, value_at_a_point
 
 
 # ---------------------------------------------------------------------
@@ -98,64 +93,19 @@ def r_p(X, PP):
 
 def project_geodesic(PP, run):
     """Project the geodesic into the Particle Domains (from Horizon to Infinity)"""
-    print(eval_at_x(PP, "r_p", 0.3))
-    print(eval_at_x(PP, "t_p", 0.3))
-    exit()
 
     PP.t_p[0] = PP.t_p_f[0]
     PP.phi_p[0] = PP.phi_p_f[0]
     PP.t_p[PP.N_OD] = PP.t_p_f[PP.N_time]
     PP.phi_p[PP.N_OD] = PP.phi_p_f[PP.N_time]
-    # PP.rs_p[0] = PP.rs_p_f[0]
-    # PP.chi_p[0] = PP.chi_p_f[0]
-    # PP.r_p_s[PP.N_space] = PP.r_p_h[PP.N_time]
-    # PP.rs_p_s[PP.N_space] = PP.rs_p_h[PP.N_time]
+
+    rs_apo = PP.r_apo - 2 * np.log(0.5 * PP.r_apo - 1)
+    rs_peri = PP.r_peri - 2 * np.log(0.5 * PP.r_peri - 1)
 
     for nn in range(1, PP.N_OD):
-        # print()
-        # print("nn=", nn)
-        ntime = 0
-        r_goal = PP.r_p[nn]
-
-        error0 = PP.r_apo - PP.r_peri
-        for n_t in range(PP.N_time + 1):
-            error = np.abs(r_goal - PP.r_p_f[n_t])
-            if error < error0:
-                error0 = error
-                ntime = n_t
-
-        # X_guess = PP.Xt[ntime]
-        # print("guess:", X_guess, r_p_at_x(X_guess, PP))
-        """
-        res = minimize_scalar(
-            zero_of_r_p_at_x,
-            bounds=(-1, 1),
-            args=(r_goal, PP),
-            method="bounded",
-            options={"xatol": 1e-15, "maxiter": 50},
-        )
-        """
-        res = root(
-            zero_of_r_p_at_x,
-            x0=0.9,
-            args=(r_goal, PP),
-            method="lm",
-            options={"xatol": 1e-15, "maxiter": 50},
-        )
-
-        x_v = res.x
-        x_v = PP.Xt[ntime]
-        # print("x_v", x_v)
-        x_v = (2 * PP.r_p[nn] - PP.r_apo - PP.r_peri) / (PP.r_apo - PP.r_peri)
-        # print("x_v2", x_v)
-        PP.t_p[nn] = t_p_at_x(x_v, PP)
-        PP.phi_p[nn] = phi_p_at_x(x_v, PP)
-        # PP.t_p_s[nn] = t_p_at_x(x_v,PP)
-        # PP.r_p_s[nn] = r_p_at_x(x_v,PP)
-        # PP.rs_p_s[nn] = rs_p_at_x(x_v,PP)
-
-    print(PP.t_p_f)
-    print(PP.t_p)
+        x_v = (2 * PP.rs_p[nn] - rs_apo - rs_peri) / (rs_apo - rs_peri)
+        PP.t_p[nn] = value_at_a_point(x_v, PP.An_t_p_f)
+        PP.phi_p[nn] = value_at_a_point(x_v, PP.An_phi_p_f)
 
     logging.info(
         "FRED RUN %d: Projection of the geodesic onto the Radial Spatial Domain Done",

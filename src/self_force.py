@@ -11,15 +11,14 @@ import argparse
 import pandas as pd
 import numpy as np
 from scipy import special
-from scipy.optimize import minimize_scalar
 from class_SF_Physics import Physical_Quantities
 from Some_functions import (
     run_basic_tests,
     show_parameters,
     fred_goodbye,
     logging_func,
+    value_at_a_point,
 )
-from Schwarzschild import zero_of_r_p_at_X, t_p_at_X, phi_p_at_X
 
 
 # ---------------------------------------------------------------------
@@ -191,33 +190,16 @@ def project_geodesic(PP, run):
     """Project the geodesic into the Particle Domains (from Horizon to Infinity)"""
     PP.t_p[0] = PP.t_p_f[0]
     PP.phi_p[0] = PP.phi_p_f[0]
-
-    for i in range(1, PP.N_OD):
-        r_goal = PP.r_p[i]
-
-        error0 = PP.r_apo - PP.r_peri
-        for n_t in range(PP.N_time + 1):
-            error = np.abs(r_goal - PP.r_p_f[n_t])
-
-            if error < error0:
-                error0 = error
-
-        res = minimize_scalar(
-            zero_of_r_p_at_X,
-            bounds=(-1, 1),
-            args=(r_goal, PP),
-            method="bounded",
-            options={"xatol": 1e-15, "maxiter": 50000000000},
-        )
-
-        x_v = res.x
-        PP.t_p[i] = t_p_at_X(x_v, PP)
-        PP.phi_p[i] = phi_p_at_X(x_v, PP)
-
     PP.t_p[PP.N_OD] = PP.t_p_f[PP.N_time]
     PP.phi_p[PP.N_OD] = PP.phi_p_f[PP.N_time]
 
-    PP.rs_p = PP.r_p - 2.0 * np.log(0.5 * (PP.r_p) - 1.0)
+    rs_apo = PP.r_apo - 2 * np.log(0.5 * PP.r_apo - 1)
+    rs_peri = PP.r_peri - 2 * np.log(0.5 * PP.r_peri - 1)
+
+    for nn in range(1, PP.N_OD):
+        x_v = (2 * PP.rs_p[nn] - rs_apo - rs_peri) / (rs_apo - rs_peri)
+        PP.t_p[nn] = value_at_a_point(x_v, PP.An_t_p_f)
+        PP.phi_p[nn] = value_at_a_point(x_v, PP.An_phi_p_f)
 
     logging.info(
         "FRED RUN %d: Projection of the geodesic onto the Radial Spatial Domain Done",

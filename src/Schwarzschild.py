@@ -101,31 +101,3 @@ def rstar_to_rsch(rstar):
     r_sch = 2.0 * (x_sch + 1.0)
 
     return np.real(r_sch)
-
-
-# TODO this works, together with chebyshev_coefs function in class
-def eval_at_x(PP, var_str, x):
-    """Evaluate variable at an arbitrary value of the Time Spectral Coordinate
-    var_str: string with name of variable"""
-    var_x = 0.0
-
-    # Coefficients for vairable
-    An_var = getattr(PP, "An_" + var_str + "_f")
-
-    # Adding the contribution of each Spectral Mode:
-    for ii in range(PP.N_time + 1):
-        # Value of the n-th Chebyshev Polynomial at the given spectral coordinate:
-        T_n_x = special.eval_chebyt(ii, x)
-        var_x += An_var[ii] * T_n_x
-
-    return var_x
-
-
-def zero_of_r_p_at_x(x, r_goal, PP):
-    """Used by the scipy scalar minimization routine to find the x that correspond to a given
-    value of the Schwarzschild radial coordinate r, called 'r_goal'"""
-    r_p = eval_at_x(PP, "r_p", x)
-    # abs_error = np.abs(a - r_goal)
-    # print(x, r_p, r_goal, abs_error)
-    error = r_p - r_goal
-    return error

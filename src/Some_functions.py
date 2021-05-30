@@ -13,6 +13,11 @@ def compute_spectral_coefficients(Ui, imag=False):
     # Estimating the Number of Collocation Points:
     N = Ui.size - 1
 
+    # Weights
+    weights = 1 / N * np.ones(N + 1)
+    weights[0] /= 2
+    weights[N] /= 2
+
     # Allocating Array for Spectral Coefficients:
     if imag is False:
         An = np.zeros(N + 1)
@@ -24,13 +29,9 @@ def compute_spectral_coefficients(Ui, imag=False):
         An[nn] = Ui[0] + ((-1) ** nn) * Ui[N]
 
         for kk in range(1, N):
-            An[nn] = An[nn] + 2.0 * (np.cos((np.pi) * kk * nn / N)) * Ui[kk]
-        if nn == 0:
-            An[nn] = 0.5 * An[nn] / N
-        elif nn == N:
-            An[nn] = 0.5 * ((-1) ** N) * An[nn] / N
-        else:
-            An[nn] = ((-1) ** nn) * An[nn] / N
+            An[nn] += 2 * (np.cos((np.pi) * kk * nn / N)) * Ui[kk]
+
+        An[nn] *= ((-1) ** nn) * weights[nn]
 
     return An
 
@@ -47,11 +48,9 @@ def value_at_a_point(x, An):
 
     # Adding the contribution of each Spectral Mode:
     for ns in range(0, N + 1):
-
         # Value of the n-th Chebyshev Polynomial at the given spectral coordinate:
         T_nn_x = special.eval_chebyt(ns, x)
-
-        value_at_point = value_at_point + An[ns] * T_nn_x
+        value_at_point += An[ns] * T_nn_x
 
     return value_at_point
 
@@ -67,9 +66,6 @@ def spectral_time_integration(integrand, T_r):
         Nmax = N // 2
     else:
         Nmax = (N - 1) // 2
-
-    # Allocating Array for Spectral Coefficients:
-    An = np.zeros(N + 1, dtype=np.complex128)
 
     #  Computing Spectral Coefficients of the integrand
     An = compute_spectral_coefficients(integrand, True)
@@ -94,7 +90,6 @@ def run_basic_tests(df, run):
         fred_goodbye()
 
     if df.N_time[run] % 2 != 0:
-        # print("The number of Points in the Orbital Domain, 'N_OD', must be even.\n")
         logging.error(
             "The number of Collocation Points in Time, 'N_time', must be even."
         )

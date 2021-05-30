@@ -13,7 +13,7 @@ from orbital_computations import (
     sco_odes_rhs,
 )
 from Schwarzschild import r_schwarzschild_to_r_tortoise
-from Some_functions import Jump_Value
+from Some_functions import Jump_Value, compute_spectral_coefficients
 
 # Disable some linter warnings and format
 # pylint: disable=too-many-instance-attributes
@@ -226,14 +226,10 @@ class Physical_Quantities:
         self.chi_p = np.zeros(self.N_OD + 1)
         self.phi_p = np.zeros(self.N_OD + 1)
 
-        # Computation of the Chebyshev-Lobatto Grid and Weights:
+        # Computation of the Chebyshev-Lobatto Grid:
         self.Xt = np.zeros(self.N_time + 1)
         self.Xt[0] = -1.0
         self.Xt[self.N_time] = 1.0
-
-        Wt = (np.pi / (self.N_time)) * np.ones(self.N_time + 1)
-        Wt[0] = 0.5 * (Wt[0])
-        Wt[self.N_time] = 0.5 * (Wt[self.N_time])
 
         N_time_half = self.N_time // 2  # code forces N_time to be even
         for k in range(1, N_time_half):
@@ -241,12 +237,9 @@ class Physical_Quantities:
             self.Xt[self.N_time - k] = -self.Xt[k]
         self.Xt[N_time_half] = 0.0
 
-        print(self.Xt)
-
         # Integration Times at which we must solve the Orbit ODEs [From t = 0 to t = Tr]:
         # TODO: llavors el 0.5 no caldria
         self.t_p_f = 0.5 * (self.T_r) * (1.0 + self.Xt)
-
         # Solve the Orbit ODEs for the interval t in [0, Tr]:
         # chi_p_0 and phi_p_0 are hardwired to 0 because we want to start at r_p = r_peri
 
@@ -268,41 +261,25 @@ class Physical_Quantities:
 
         # Computation of the Particle Radial Location [Tortoise Coordinate]:
         self.rs_p_f = self.r_p_f - 2.0 * np.log(0.5 * (self.r_p_f) - 1.0)
+        rs_apo = self.r_apo - 2 * np.log(0.5 * self.r_apo - 1)
+        rs_peri = self.r_peri - 2 * np.log(0.5 * self.r_peri - 1)
+        rs = self.Xt * (rs_apo - rs_peri) / 2 + (rs_apo + rs_peri) / 2
 
         # Uniform Grid for the Schwarzschild and Tortoise Radial Coordinates: r_p, rs_p
         self.r_p = self.r_peri + ((self.r_apo - self.r_peri) / self.N_OD) * np.arange(self.N_OD + 1)
         self.rs_p = self.r_p - 2.0 * np.log(0.5 * (self.r_p) - 1.0)
-
-        print(self.r_p_f)
-        print(self.r_p)
 
     # ------------------------------------------------------------------------
 
     def chebyshev_coefs(self):
         """Coefficients for expanding in Chebyshev polynomials
         Obtained from values at known positions"""
-        self.An_t_p_f   = np.zeros(self.N_time + 1)
-        self.An_r_p_f   = np.zeros(self.N_time + 1)
-        self.An_rs_p_f  = np.zeros(self.N_time + 1)
-        self.An_chi_p_f = np.zeros(self.N_time + 1)
-        self.An_phi_p_f = np.zeros(self.N_time + 1)
 
-        n = self.N_time
-        for k in range(n + 1):
-            # Vector with the n-th Chebyshev Polynomials at the given spectral coordinate:
-            T_n_x = np.array([special.eval_chebyt(i, self.Xt[k]) for i in range(1, n + 2)])
-            self.An_t_p_f   += self.t_p_f[k]   * T_n_x
-            self.An_r_p_f   += self.r_p_f[k]   * T_n_x
-            self.An_rs_p_f  += self.rs_p_f[k]  * T_n_x
-            self.An_phi_p_f += self.phi_p_f[k] * T_n_x
-            self.An_chi_p_f += self.chi_p_f[k] * T_n_x
-
-        # Normalization
-        self.An_t_p_f   = self.An_t_p_f   * 2 / (n + 1)
-        self.An_r_p_f   = self.An_r_p_f   * 2 / (n + 1)
-        self.An_rs_p_f  = self.An_rs_p_f  * 2 / (n + 1)
-        self.An_phi_p_f = self.An_phi_p_f * 2 / (n + 1)
-        self.An_chi_p_f = self.An_chi_p_f * 2 / (n + 1)
+        self.An_t_p_f   = compute_spectral_coefficients(self.t_p_f)
+        self.An_r_p_f   = compute_spectral_coefficients(self.r_p_f)
+        self.An_rs_p_f  = compute_spectral_coefficients(self.rs_p_f)
+        self.An_chi_p_f = compute_spectral_coefficients(self.chi_p_f)
+        self.An_phi_p_f = compute_spectral_coefficients(self.phi_p_f)
 
     # ------------------------------------------------------------------------
 
