@@ -364,11 +364,8 @@ class Physical_Quantities:
 
         indices = (ll, mm, nf + self.N_Fourier)
 
-        # Particle Location (rho/rstar and r Coordinates)
-        rp = self.r_p
-
         # Schwarzschild metric function 'f = 1 - 2M/r'
-        fp = 1.0 - 2.0 / rp
+        fp = 1.0 - 2.0 / self.r_p
 
         # Value of the Jump
         # J_lmn = Jump_Value(ll, mm, nf, self)  # TODO provisional
@@ -380,8 +377,8 @@ class Physical_Quantities:
         Cm_lmn = self.R_I[indices] * J_lmn / wronskian_RQ
         Cp_lmn = self.R_H[indices] * J_lmn / wronskian_RQ
 
-        # Compute the Values of the Bare Field Modes (R,Q)(ll,mm,nn) at the Particle Location 'ns'
-        # using the Correct Boundary Conditions: RESCALING WITH THE C_lmn COEFFICIENTS
+        # Compute the Values of the Bare Field Modes (R,Q)(ll,mm,nn) at the Particle Location
+        # using the Correct Boundary Conditions: rescaling with the C_lmn coefficients
         self.R_H[indices] *= Cm_lmn
         self.Q_H[indices] *= Cm_lmn
         self.R_I[indices] *= Cp_lmn
@@ -390,8 +387,8 @@ class Physical_Quantities:
         # Contribution of the Fourier Mode 'nf' (l m nf) to the Radial Component of the Bare (full) Self-Force
         # [NOTE: This is the contribution up to a multiplicative factor that is applied below]
         exp_factor = np.exp(-1j * nf * self.omega_r * self.t_p)
-        self.SF_F_r_lm_H[ll, mm] += (self.Q_H[indices] / fp - self.R_H[indices] / rp) * exp_factor
-        self.SF_F_r_lm_I[ll, mm] += (self.Q_I[indices] / fp - self.R_I[indices] / rp) * exp_factor
+        self.SF_F_r_lm_H[ll, mm] += (self.Q_H[indices] / fp - self.R_H[indices] / self.r_p) * exp_factor
+        self.SF_F_r_lm_I[ll, mm] += (self.Q_I[indices] / fp - self.R_I[indices] / self.r_p) * exp_factor
 
         # print( f"l={ll} m={mm} n={nf}: c_H[{nf}]={self.SF_F_r_lm_H[ll, mm]}  c_I[{nf}]={self.SF_F_r_lm_I[ll, mm]}")
 

@@ -169,14 +169,7 @@ def do_mode(ll, mm, nf, PP, run, save):
     # Store computed modes from compute_mode
     PP.store(indices)
 
-    str_indices = "_".join(map(str, indices))
-    pickle.dump(PP.R_H[indices], open(f"results/R_H_before_{str_indices}.pkl", "wb"))
-    pickle.dump(PP.R_I[indices], open(f"results/R_I_before_{str_indices}.pkl", "wb"))
-
     PP.rescale_mode(ll, mm, nf)
-
-    pickle.dump(PP.R_H[indices], open(f"results/R_H_after_{str_indices}.pkl", "wb"))
-    pickle.dump(PP.R_I[indices], open(f"results/R_I_after_{str_indices}.pkl", "wb"))
 
     # For nf != 0 there are both positive and negative frequencies
     if nf > 0:
@@ -294,7 +287,7 @@ def run_prints(PP, run, resfilename, run_start_time):
         resultsfile.write(f"#   Total Run Time:                                 Tc = {str_time}\n#\n")
         resultsfile.write("#   r_p            F_r-            F_r+\n")
         for ns in range(PP.N_OD):
-            resultsfile.write(f"{PP.r_p[ns]:.6f},{np.real(PP.SF_r_H[ns]):.14f},{np.real(PP.SF_r_I[ns]):.14f},\n")
+            resultsfile.write(f"{PP.r_p[ns]:.6f},{np.real(PP.SF_r_H[ns]):.14f},{np.real(PP.SF_r_I[ns]):.14f}\n")
 
     # fmt: on
 

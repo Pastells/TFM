@@ -172,7 +172,6 @@ function RHS_ID(u, p, t)
     Q = re_Q + 1im * im_Q
     dR, dQ = 0, 0
 
-    # Some common Definitions
     cb = ll * (ll + 1)
 
     # Integration through the Infinity Domain (ID)
@@ -362,14 +361,6 @@ function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
     # save at whole array or only last point
     save ? saveat=PP.rho_HD : saveat=PP.rho_peri
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=saveat)
-    lambda_minus = last(sol.u)[1]
-
-    if save
-        u_matrix = hcat(sol.u...)'
-        u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
-        PP.single_R_HD = u_matrix[:,1] + 1im * u_matrix[:,2]
-        PP.single_Q_HD = u_matrix[:,3] + 1im * u_matrix[:,4]
-    end
 
     # ----- HOD -----
     # print("HOD")
@@ -377,13 +368,22 @@ function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
     u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
     tspan = (PP.rho_peri, PP.rho_apo)
     prob = ODEProblem(RHS_HOD,u0,tspan,p)
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD)
+    sol2 = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD)
+    lambda_minus = last(sol2.u)[1]
 
-    u_matrix = hcat(sol.u...)'
+    u_matrix = hcat(sol2.u...)'
     u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
 
     PP.single_R_HOD = u_matrix[:,1] + 1im * u_matrix[:,2]
     PP.single_Q_HOD = u_matrix[:,3] + 1im * u_matrix[:,4]
+
+    # save HD region
+    if save
+        u_matrix = hcat(sol.u...)'
+        u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
+        PP.single_R_HD = u_matrix[:,1] + 1im * u_matrix[:,2]
+        PP.single_Q_HD = u_matrix[:,3] + 1im * u_matrix[:,4]
+    end
 
     # ----- ID (backwards) -----
     # print("ID")
@@ -394,14 +394,7 @@ function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
     save ? saveat=PP.rho_ID : saveat=PP.rho_apo
     # reverse time t -> -t, by changing saveat sign
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=-saveat)
-    lambda_plus = last(sol.u)[1]
 
-    if save
-        u_matrix = hcat(sol.u...)'
-        u_matrix = u_matrix/lambda_plus  # λ⁻ = 1
-        PP.single_R_ID = u_matrix[:,1] + 1im * u_matrix[:,2]
-        PP.single_Q_ID = u_matrix[:,3] + 1im * u_matrix[:,4]
-    end
 
     # ----- IOD (backwards) -----
     # print("IOD")
@@ -410,11 +403,19 @@ function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
     tspan = (-PP.rho_apo, -PP.rho_peri)
     prob = ODEProblem(RHS_IOD,u0,tspan,p)
     # reverse time t -> -t, by changing saveat sign
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=-PP.rho_IOD)
+    sol2 = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=-PP.rho_IOD)
+    lambda_plus = last(sol2.u)[1]
 
-    u_matrix = hcat(sol.u...)'
+    u_matrix = hcat(sol2.u...)'
     u_matrix = u_matrix/lambda_plus  # λ⁺ = 1
     PP.single_R_IOD = u_matrix[:,1] + 1im * u_matrix[:,2]
     PP.single_Q_IOD = u_matrix[:,3] + 1im * u_matrix[:,4]
-    return
+
+    # Save ID region
+    if save
+        u_matrix = hcat(sol.u...)'
+        u_matrix = u_matrix/lambda_plus  # λ⁺ = 1
+        PP.single_R_ID = u_matrix[:,1] + 1im * u_matrix[:,2]
+        PP.single_Q_ID = u_matrix[:,3] + 1im * u_matrix[:,4]
+    end
 end

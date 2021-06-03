@@ -16,3 +16,6 @@ Manual installation:
 
 Model executed like:
 `python src/self_force.py data/prova.csv [-log_print] [-save]`
+
+Read results into pandas:
+`df = pd.read_csv("data/prova_results.csv", comment="#", names=["rp","fm","fp"])`
