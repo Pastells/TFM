@@ -84,9 +84,9 @@ def run_basic_tests(df, run):
     """Test consistency of Run Parameters"""
 
     if df.e_orbit[run] < 1.0e-14:
-        logging.error("This version of the FRED Code computes the Self-Force for\n")
-        logging.error("Eccentric Orbits. For Circular Orbits use an adapted version\n")
-        logging.error("of the FRED Code (version 2.0).  Thanks!\n")
+        logging.error("This version of the FRED Code computes the Self-Force for")
+        logging.error("eccentric Orbits. For Circular Orbits use an adapted version")
+        logging.error("of the FRED Code (version 2.0).")
         fred_goodbye()
 
     if df.N_time[run] % 2 != 0:
@@ -96,8 +96,8 @@ def run_basic_tests(df, run):
         fred_goodbye()
 
     if df.BC_at_particle[run] != "R" and df.BC_at_particle[run] != "Q":
-        logging.error("The Parameter 'BC_at_particle' has an illegal value.\n")
-        logging.error("It must be either 'R' or 'Q'. Thanks!\n")
+        logging.error("The Parameter 'BC_at_particle' has an illegal value.")
+        logging.error("It must be either 'R' or 'Q'.")
         fred_goodbye()
 
 
@@ -155,7 +155,6 @@ def show_parameters(PP, run):
 
 def fred_goodbye():
     """This funtion just says Goodbye :-)"""
-    # if __name__ == "__main__":
     logging.info("Thanks for using the FRED Code (version 2.0)")
     logging.info("FRED Code (c) 2012-2021 C.F. Sopuerta")
     logging.info("Goodbye!")

@@ -8,7 +8,7 @@ import argparse
 import pandas as pd
 import numpy as np
 from class_SF_Physics import Physical_Quantities
-from Some_functions import run_basic_tests, show_parameters, value_at_a_point
+from utils import run_basic_tests, show_parameters, value_at_a_point
 
 
 # ---------------------------------------------------------------------

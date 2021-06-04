@@ -13,7 +13,7 @@ from orbital_computations import (
     sco_odes_rhs,
 )
 from Schwarzschild import r_schwarzschild_to_r_tortoise
-from Some_functions import Jump_Value, compute_spectral_coefficients
+from utils import Jump_Value, compute_spectral_coefficients
 
 # Disable some linter warnings and format
 # pylint: disable=too-many-instance-attributes

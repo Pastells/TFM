@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 from scipy import special
 from class_SF_Physics import Physical_Quantities
-from Some_functions import (
+from utils import (
     run_basic_tests,
     show_parameters,
     fred_goodbye,

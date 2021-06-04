@@ -8,7 +8,7 @@ FOLDER = normpath(joinpath(@__FILE__,"..",".."))
 machinery = pyimport("importlib.machinery")
 loader = machinery.SourceFileLoader("Schwarzschild", FOLDER * "/src/Schwarzschild.py")
 schw = loader.load_module("Schwarzschild")
-include("./hyperboloidal_compactification_tanh.jl")
+include("./compactification.jl")
 
 # -----------------------------------------------
 
