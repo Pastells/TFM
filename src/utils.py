@@ -87,7 +87,7 @@ def run_basic_tests(df, run):
         logging.error("This version of the FRED Code computes the Self-Force for")
         logging.error("eccentric Orbits. For Circular Orbits use an adapted version")
         logging.error("of the FRED Code (version 2.0).")
-        fred_goodbye()
+        # fred_goodbye()
 
     if df.N_time[run] % 2 != 0:
         logging.error(

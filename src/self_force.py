@@ -190,7 +190,10 @@ def project_geodesic(PP, run):
     rs_peri = PP.r_peri - 2 * np.log(0.5 * PP.r_peri - 1)
 
     for nn in range(1, PP.N_OD):
-        x_v = (2 * PP.rs_p[nn] - rs_apo - rs_peri) / (rs_apo - rs_peri)
+        if PP.e_orbit < 1e-5:
+            x_v = 0.5
+        else:
+            x_v = (2 * PP.rs_p[nn] - rs_apo - rs_peri) / (rs_apo - rs_peri)
         PP.t_p[nn] = value_at_a_point(x_v, PP.An_t_p_f)
         PP.phi_p[nn] = value_at_a_point(x_v, PP.An_phi_p_f)
 
