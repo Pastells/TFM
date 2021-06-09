@@ -14,12 +14,12 @@ include("./compactification.jl")
 
 function regge_wheeler_potential(rstar, ll)
     cb = ll * (ll + 1)
-    xstar = 0.5 * rstar - 1.0
+    xstar = 0.5 * rstar - 1
     xsch = schw.r_tortoise_to_x_schwarzschild(rstar)
-    rsch = 2.0 * (1.0 + xsch)
+    rsch = 2 * (1 + xsch)
     # exp(xstar-x) = x
 
-    Vl =  2.0 * exp(xstar - xsch) * (cb + 2.0 / rsch) / (rsch^3)
+    Vl =  2 * exp(xstar - xsch) * (cb + 2 / rsch) / (rsch^3)
 
     return Vl
 end
@@ -43,29 +43,29 @@ function RHS_HD(u, p, t)
         # Integration near the Horizon
         # Using the initial condition (R = A, Q = -i w_mn R) and (dR = Q)
         # => R = A exp(-i w_mn epsilon), dR = -i w_mn A exp(-i w_mn epsilon)
-        if epsilon_rho < 1.0e-6
+        if epsilon_rho < 1e-6
 
             dR = -1im * w_mn * R * exp(-1im * w_mn * epsilon_rho)
             dQ = -(w_mn^2) * R * exp(-1im * w_mn * epsilon_rho)
 
             # Integration not close to the Horizon
         else
-            Omega = 1.0 - rho / PP.rho_H
+            Omega = 1 - rho / PP.rho_H
             rstar = rho / Omega
             xsch = schw.r_tortoise_to_x_schwarzschild(rstar)
-            rsch = 2.0 * (1.0 + xsch)
+            rsch = 2 * (1 + xsch)
             rsch2 = rsch * rsch
             rsch3 = rsch2 * rsch
 
             exp_rstar_over_2M = exp(0.5 * rstar)
-            regular_potential_factor = ( exp(-(1.0 + xsch)) * (2.0 / rsch3)
-                                        * (ll * (ll + 1) + 2.0 * (PP.sigma_spin) / rsch)
+            regular_potential_factor = ( exp(-(1 + xsch)) * (2 / rsch3)
+                                        * (ll * (ll + 1) + 2 * (PP.sigma_spin) / rsch)
                                        )
 
-            H = 1.0 - Omega^2
-            H_plus_one = 1.0 + H
-            DH = (2.0 / PP.rho_H) * Omega
-            DH_over_1minusH = (2.0 / PP.rho_H) / Omega
+            H = 1 - Omega^2
+            H_plus_one = 1 + H
+            DH = (2 / PP.rho_H) * Omega
+            DH_over_1minusH = (2 / PP.rho_H) / Omega
             Q_over_omega2 = Q / Omega^2
             R_over_omega2 = R / Omega^2
 
@@ -85,15 +85,15 @@ function RHS_HD(u, p, t)
         f1 = jacobian * f_transition_1st(f0, sigma, PP.TF)
         f2 = (jacobian^2) * f_transition_2nd(f0, sigma, PP.TF)
 
-        Omega = 1.0 - f0 * rho / PP.rho_H
+        Omega = 1 - f0 * rho / PP.rho_H
         dOmega_drho = -(f0 + rho * f1) / PP.rho_H
-        d2Omega_drho2 = -(2.0 * f1 + rho * f2) / PP.rho_H
+        d2Omega_drho2 = -(2 * f1 + rho * f2) / PP.rho_H
 
         LH = Omega - rho * dOmega_drho
-        H = 1.0 - (Omega^2) / LH
-        one_plus_H = 1.0 + H
-        one_minus_H = 1.0 - H
-        DH = -(Omega / LH) * (2.0 * dOmega_drho + rho * (Omega / LH) * d2Omega_drho2)
+        H = 1 - (Omega^2) / LH
+        one_plus_H = 1 + H
+        one_minus_H = 1 - H
+        DH = -(Omega / LH) * (2 * dOmega_drho + rho * (Omega / LH) * d2Omega_drho2)
 
         rstar = rho / Omega
         Vl = regge_wheeler_potential(rstar, ll)
@@ -179,25 +179,36 @@ function RHS_ID(u, p, t)
         epsilon_rho = PP.rho_I - rho
 
         # Integration near (null) Infinity
-        if epsilon_rho < 1.0e-6
+        if epsilon_rho < 1e-6
 
             # Integration for the Particular Case of Zero-Frequency Modes
-            if w_mn < 1.0e-8
+            if w_mn < 1e-8
+                println("w_mn < 1e-8 region")
 
-                sigma0 = 1.0
-                sigma1 = (sigma0/((ll+1)*PPC.rho_I))*( cb - (1.0/PPC.rho_I)*(cb-1) )
+                rho_1 = 1/PP.rho_I
+                ell_1 = ll + 1
+                ell_2 = ll + 2
+                ell_32 = ll + 3/2
 
-                sigma2 = (sigma0/(4.0*(ll+1)*(ll+3/2)*(PPC.rho_I^2)))*( 2.0*(ll^4 + 2.0*ll^3 - ll^2 - 4.0*ll-1.0)*(1.0/(PPC.rho_I^2)) \
-                                                                          - 4.0*(ll+1)*(ll+3/2)*(ll*(ll+1)-1.0)*(1.0/PPC.rho_I) + 2.0*ll*(ll+1)^2*(ll+3/2) )
+                sigma0 = 1
 
-                sigma3 = (sigma0/(12.0*(ll+2)*(ll+1)*(ll+3/2)*(PPC.rho_I^3)))*( -2.0*(ll^2+ll-1)*(ll^4+2.0*ll^3-ll^2-8.0*ll-7.0)*(1.0/(PPC.rho_I^3)) \
-                                                                                   + 6.0*(ll+2)^2*(ll^4+2.0*ll^3-ll^2-4.0*ll-1.0)*(1.0/(PPC.rho_I^2)) - 6.0*(ll+2)^2*(ll+1)*(ll+3/2)*(ll^2+ll-1.0)*(1.0/PPC.rho_I) \
-                                                                                   + 2*(ll+2)^2*(ll+1)^2*ll*(ll+3/2) )
+                sigma1 = sigma0 * rho_1 * (cb - rho_1*(cb-1)) / ell_1
 
+                sigma2 = sigma0 / (4*ell_1*ell_32 * PP.rho_I^2) * (
+                           2 * (ll^4 + 2*ll^3 - ll^2 - 4*ll - 1) * (rho_1^2) +
+                         - 4 * ell_1*ell_32 * (ll*ell_1-1) * rho_1 + 2*ll*ell_1^2*ell_32
+                        )
 
-                Sigma = sigma0 + sigma1 * epsilon_rho + sigma2 * epsilon_rho ^ 2 + sigma3 * epsilon_rho ^ 3
-                dSigmadepsilon = sigma1 + 2.0*sigma2*epsilon_rho + 3.0*sigma3*epsilon_rho^2
-                d2Sigmadepsilon2 = 2.0*sigma2 + 6.0*sigma3*epsilon_rho
+                sigma3 = sigma0 / (12*ell_2*ell_1*ell_32 * PP.rho_I^3) * (
+                            - 2 * (ll^2+ll-1)*(ll^4+2*ll^3-ll^2-8*ll-7) * (rho_1^3) +
+                            + 6 * ell_2^2 * (ll^4+2*ll^3-ll^2-4*ll-1) * (rho_1^2) +
+                            - 6 * ell_2^2 * ell_1*ell_32*(ll^2+ll-1) * rho_1 +
+                            + 2 * ell_2^2 * ell_1^2*ll*ell_32
+                        )
+
+                Sigma = sigma0 + sigma1 * epsilon_rho + sigma2 * epsilon_rho^2 + sigma3 * epsilon_rho^3
+                dSigmadepsilon = sigma1 + 2 * sigma2 * epsilon_rho + 3 * sigma3 * epsilon_rho^2
+                d2Sigmadepsilon2 = 2 * sigma2 + 6 * sigma3 * epsilon_rho
 
                 # Particular Case: ll = 0
                 if ll == 0
@@ -208,60 +219,70 @@ function RHS_ID(u, p, t)
                 elseif ll == 1
 
                     dR = -Sigma - epsilon_rho * dSigmadepsilon
-                    dQ = 2.0 * dSigmadepsilon + epsilon_rho * d2Sigmadepsilon2
+                    dQ = 2 * dSigmadepsilon + epsilon_rho * d2Sigmadepsilon2
 
                 # All other ll different from 0 and 1
                 else
-                    dR = - (epsilon_rho^ll)*( ll*Sigma + epsilon_rho*dSigmadepsilon )
-                    dQ = (epsilon_rho^(ll-2))*( ll*(ll-1)*Sigma + 2.0*ll*epsilon_rho*dSigmadepsilon + (epsilon_rho^2)*d2Sigmadepsilon2 )
+                    dR = -epsilon_rho^ll * ( ll*Sigma + epsilon_rho*dSigmadepsilon )
+                    dQ = epsilon_rho^(ll-2) * (
+                            ll*(ll-1)*Sigma +
+                            + 2*ll*epsilon_rho*dSigmadepsilon +
+                            + (epsilon_rho^2)*d2Sigmadepsilon2
+                            )
                 end
 
             # Integration for non-zero Frequency Modes
             else
-                qireal = 0.0
-                qiimag = w_mn*re_RI*(1.0 - cb/(2.0*(PPC.rho_I^2)*w_mn^2))
+                qireal = 0
+                qiimag = w_mn*re_RI*(1 - cb / (2*PP.rho_I^2 * w_mn^2))
 
                 r1real = qireal
                 r1imag = qiimag
 
-                q1real = -w_mn^2*re_RI*( 1.0 - cb*( 1.0 - (ll^2+ll+2.0)/(4*(PPC.rho_I^2)*w_mn^2) )/((PPC.rho_I^2)*w_mn^2) )
-                q1imag = -w_mn^2*re_RI*( 1.0 - cb*(1.0-PPC.rho_I) )/((PPC.rho_I^4)*w_mn^3)
+                q1real = -w_mn^2*re_RI*( 1 - cb*( 1 - (ll^2+ll+2) / (4*PP.rho_I^2 * w_mn^2) ) / (PP.rho_I^2 * w_mn^2) )
+                q1imag = -w_mn^2*re_RI*( 1 - cb*(1-PP.rho_I) ) / (PP.rho_I^4 * w_mn^3)
 
                 r2real = -0.5*q1real
                 r2imag = -0.5*q1imag
 
-                q2real = (re_RI/(4.0*(PPC.rho_I^4)))*( cb*(PPC.rho_I - 1.0) + 1.0 )*( 2.0 - (cb + 6.0)/((PPC.rho_I^2)*w_mn^2) )
-                q2imag = (w_mn^3*re_RI/2.0)*( 1.0 - (3.0*cb-4.0)/(2.0*(PPC.rho_I^2)*w_mn^2) \
-                                              + cb*(3.0*cb-22.0)/(4.0*(PPC.rho_I^4)*w_mn^4) \
-                                              + 4.0*(1.0 + 1.5*(cb-1.0)*(PPC.rho_I))/((PPC.rho_I^6)*w_mn^4) \
-                                              - cb*(ll+3.0)*(ll-2.0)*(cb+2.0)/(8.0*(PPC.rho_I^6)*w_mn^6) )
+                q2real = (re_RI / (4*PP.rho_I^4))*( cb*(PP.rho_I - 1) + 1 )*( 2 - (cb + 6) / (PP.rho_I^2 * w_mn^2) )
+                q2imag = (w_mn^3*re_RI/2) * (
+                          + 1 - (3*cb-4) / (2*PP.rho_I^2 * w_mn^2) +
+                          + cb*(3*cb-22) / (4*PP.rho_I^4 * w_mn^4) +
+                          + 4*(1 + 1.5*(cb-1)*(PP.rho_I)) / (PP.rho_I^6 * w_mn^4) +
+                          - cb*(ll+3)*(ll-2)*(cb+2) / (8*PP.rho_I^6 * w_mn^6)
+                         )
 
-                r3real = -q2real/3.0
-                r3imag = -q2imag/3.0
+                r3real = -q2real/3
+                r3imag = -q2imag/3
 
-                q3real = (w_mn^4*re_RI/6.0)*( 1.0 - 2.0*(cb-1.0)/((PPC.rho_I^2)*w_mn^2) \
-                                              + (cb*(3.0*cb+2.0)+24.0)/(2.0*(PPC.rho_I^4)*w_mn^4) \
-                                              + 12.0*(cb-1.0)*(3.0/((PPC.rho_I^2)*w_mn^2) - 1.0)/((PPC.rho_I^5)*w_mn^4) \
-                                              - 8.0/((PPC.rho_I^6)*w_mn^4) \
-                                              - cb*(ll^4 + 2.0*ll^3 - 7.0*ll^2 - 8.0*ll + 72.0)/(2.0*(PPC.rho_I^6)*w_mn^6) \
-                                              + ( cb*(3.0*cb-2.0) + 27.0 )/((PPC.rho_I^8)*w_mn^6) \
-                                              + cb*(ll+3.0)*(ll+4.0)*(ll-2.0)*(ll-3.0)*(cb+2.0)/(16.0*(PPC.rho_I^8)*w_mn^8) )
+                q3real = (w_mn^4*re_RI/6) * (
+                          + 1 - 2*(cb-1) / (PP.rho_I^2 * w_mn^2) +
+                          + (cb*(3*cb+2)+24) / (2*PP.rho_I^4 * w_mn^4) +
+                          + 12*(cb-1)*(3 / (PP.rho_I^2 * w_mn^2) - 1) / (PP.rho_I^5 * w_mn^4) +
+                          - 8 / (PP.rho_I^6 * w_mn^4) +
+                          - cb*(ll^4 + 2*ll^3 - 7*ll^2 - 8*ll + 72) / (2*PP.rho_I^6 * w_mn^6) +
+                          + ( cb*(3*cb-2) + 27 ) / (PP.rho_I^8 * w_mn^6) +
+                          + cb*(ll+3)*(ll+4)*(ll-2)*(ll-3)*(cb+2) / (16*PP.rho_I^8 * w_mn^8)
+                         )
 
-                q3imag = (re_RI/6.0)*( -4.0*cb*w_mn/(PPC.rho_I^3) \
-                                      + 4.0*w_mn*(cb-1.0)/(PPC.rho_I^4) \
-                                      + 4.0*cb*(ll+3.0)*(ll-2.0)/((PPC.rho_I^5)*w_mn) \
-                                      - 4.0*(ll+4.0)*(ll-3.0)*(cb-1.0)/((PPC.rho_I^6)*w_mn) \
-                                      + 48.0/((PPC.rho_I^7)*w_mn) \
-                                      - cb*(cb^2-18.0)/((PPC.rho_I^7)*w_mn^3) \
-                                      + (cb-1.0)*(cb^2-18.0)/((PPC.rho_I^8)*w_mn^3) )
+                q3imag = (re_RI/6) * (
+                          - 4*cb*w_mn / PP.rho_I^3 +
+                          + 4*w_mn*(cb-1) / (PP.rho_I^4) +
+                          + 4*cb*(ll+3)*(ll-2) / ((PP.rho_I^5)*w_mn) +
+                          - 4*(ll+4)*(ll-3)*(cb-1) / ((PP.rho_I^6)*w_mn) +
+                          + 48 / (PP.rho_I^7*w_mn) +
+                          - cb*(cb^2-18) / (PP.rho_I^7*w_mn^3) +
+                          + (cb-1)*(cb^2-18) / (PP.rho_I^8*w_mn^3)
+                         )
 
                 r4real = -0.25*q3real
                 r4imag = -0.25*q3imag
 
-                dR_real = -r1real - 2.0*r2real*epsilon_rho - 3.0*r3real*epsilon_rho^2 - 4.0*r4real*epsilon_rho^3
-                dR_imag = -r1imag - 2.0*r2imag*epsilon_rho - 3.0*r3imag*epsilon_rho^2 - 4.0*r4imag*epsilon_rho^3
-                dQ_real = -q1real - 2.0*q2real*epsilon_rho - 3.0*q3real*epsilon_rho^2
-                dQ_imag = -q1imag - 2.0*q2imag*epsilon_rho - 3.0*q3imag*epsilon_rho^2
+                dR_real = -r1real - 2*r2real*epsilon_rho - 3*r3real*epsilon_rho^2 - 4*r4real*epsilon_rho^3
+                dR_imag = -r1imag - 2*r2imag*epsilon_rho - 3*r3imag*epsilon_rho^2 - 4*r4imag*epsilon_rho^3
+                dQ_real = -q1real - 2*q2real*epsilon_rho - 3*q3real*epsilon_rho^2
+                dQ_imag = -q1imag - 2*q2imag*epsilon_rho - 3*q3imag*epsilon_rho^2
                 dR = dR_real + 1im * dR_imag
                 dQ = dQ_real + 1im * dQ_imag
 
@@ -269,21 +290,21 @@ function RHS_ID(u, p, t)
 
         # Integration not "close" to (null) Infinity
         else
-            Omega = 1.0 - rho / PP.rho_I
+            Omega = 1 - rho / PP.rho_I
             rstar = rho / Omega
             xsch = schw.r_tortoise_to_x_schwarzschild(rstar)
-            rsch = 2.0 * (1.0 + xsch)
+            rsch = 2 * (1 + xsch)
             rsch2 = rsch * rsch
             rsch3 = rsch2 * rsch
 
-            f = 1.0 - 2.0 / rsch
-            regular_potential_factor = f * ( ll * (ll + 1) + 2.0 * (PP.sigma_spin) / rsch)
-            romega2 = (rho - 2.0 * Omega * log(xsch)) ^ 2
+            f = 1 - 2 / rsch
+            regular_potential_factor = f * ( ll * (ll + 1) + 2 * (PP.sigma_spin) / rsch)
+            romega2 = (rho - 2 * Omega * log(xsch)) ^ 2
 
-            H = 1.0 - Omega ^ 2
-            H_plus_one = 1.0 + H
-            DH = (2.0 / PP.rho_I) * Omega
-            DH_over_1minusH = (2.0 / PP.rho_H) / Omega
+            H = 1 - Omega ^ 2
+            H_plus_one = 1 + H
+            DH = (2 / PP.rho_I) * Omega
+            DH_over_1minusH = (2 / PP.rho_H) / Omega
 
             Q_over_omega2 = Q / Omega^2
             R_over_omega2 = R / Omega^2
@@ -303,36 +324,35 @@ function RHS_ID(u, p, t)
         f1 = jacobian * f_transition_1st(f0, sigma, PP.TF)
         f2 = (jacobian ^ 2) * f_transition_2nd(f0, sigma, PP.TF)
 
-        Omega = 1.0 - f0 * rho / PP.rho_I
+        Omega = 1 - f0 * rho / PP.rho_I
         dOmega_drho = -(f0 + rho * f1) / PP.rho_I
-        d2Omega_drho2 = -(2.0 * f1 + rho * f2) / PP.rho_I
+        d2Omega_drho2 = -(2 * f1 + rho * f2) / PP.rho_I
 
         LI = Omega - rho * dOmega_drho
-        H = 1.0 - (Omega ^ 2) / LI
-        one_plus_H = 1.0 + H
-        one_minus_H = 1.0 - H
-        DH = -(Omega / LI) * (2.0 * dOmega_drho + rho * (Omega / LI) * d2Omega_drho2)
+        H = 1 - (Omega ^ 2) / LI
+        one_plus_H = 1 + H
+        one_minus_H = 1 - H
+        DH = -(Omega / LI) * (2 * dOmega_drho + rho * (Omega / LI) * d2Omega_drho2)
 
         rstar = rho / Omega
         xsch = schw.r_tortoise_to_x_schwarzschild(rstar)
-        rsch = 2.0 * (1.0 + xsch)
+        rsch = 2 * (1 + xsch)
         rsch2 = rsch * rsch
         rsch3 = rsch2 * rsch
-        Vl = xsch * (2.0 / rsch3) * (ll * (ll + 1.0) + 2.0 * (PP.sigma_spin) / rsch)
+        Vl = xsch * (2 / rsch3) * (ll * (ll + 1) + 2 * (PP.sigma_spin) / rsch)
 
         dR = Q
         dQ = (DH / one_minus_H) * (Q + 1im * w_mn * R) + 2im * w_mn * (H / one_minus_H) * Q +
          -(one_plus_H / one_minus_H) * (w_mn ^ 2) * R + (Vl / one_minus_H^2) * R
 
     elseif rho <= PP.rho_IS
-        #    elseif rho <= PP.rho_IS and rho >= PP.rho_apo:
         xsch = schw.r_tortoise_to_x_schwarzschild(rho)  # rstar = rho
 
-        rsch = 2.0 * (1.0 + xsch)
+        rsch = 2 * (1 + xsch)
         rsch2 = rsch * rsch
         rsch3 = rsch2 * rsch
 
-        Vl = xsch * (2.0 / rsch3) * (ll * (ll + 1.0) + 2.0 * (PP.sigma_spin) / rsch)
+        Vl = xsch * (2 / rsch3) * (ll * (ll + 1) + 2 * (PP.sigma_spin) / rsch)
 
         dR = Q
         dQ = (Vl - w_mn^2) * R
