@@ -26,7 +26,13 @@ from utils import Jump_Value, compute_spectral_coefficients
 class Physical_Quantities:
     """Class with physical quantities and arrays needed for the main program"""
     def __init__(self, df, run=0, save=False):
-        """Initializer / Instance Attributes"""
+        """Initializer / Instance Attributes
+        df : pandas DataFrame
+            contains input parameters
+        run : int, default 0
+            id to distinguish several runs
+        save = bool, default False
+            choose to save results with pickle"""
 
         self.run = run
         self.save = save
@@ -69,7 +75,10 @@ class Physical_Quantities:
     # ------------------------------------------------------------------------
 
     def read_df(self, df):
-        """Physical parameters of the run"""
+        """Physical parameters of the run
+        df : pandas DataFrame
+            contains input parameters"""
+
         self.charge = df.particle_charge[self.run]
         self.mass_ratio = df.mass_ratio[self.run]
         self.field_spin = df.field_spin[self.run]
@@ -97,6 +106,7 @@ class Physical_Quantities:
     # ------------------------------------------------------------------------
 
     def peri_apo(self):
+        """Pericenter and apocenter for both r and rho coordinates"""
         self.r_peri = self.p_orbit / (1.0 + self.e_orbit)
         self.r_apo = self.p_orbit / (1.0 - self.e_orbit)
 
@@ -115,7 +125,9 @@ class Physical_Quantities:
         """
 
         epsilon_H = 2.8e-15
+        epsilon_I = 1
         self.rho_H_plus = self.rho_H + epsilon_H
+        self.rho_I_minus = self.rho_I - epsilon_I
 
         self.rho_HOD = np.linspace(self.rho_peri, self.rho_apo, self.N_OD + 1)
         self.rho_IOD = np.linspace(self.rho_apo, self.rho_peri, self.N_OD + 1)
@@ -127,6 +139,7 @@ class Physical_Quantities:
     # ------------------------------------------------------------------------
 
     def SF_init(self):
+        """Arrays related to the Self Force"""
         _ell_max1 = self.ell_max + 1
         _N_OD1 = self.N_OD + 1
         _N_Fourier_1 = 2 * self.N_Fourier + 1
@@ -238,7 +251,6 @@ class Physical_Quantities:
         self.Xt[N_time_half] = 0.0
 
         # Integration Times at which we must solve the Orbit ODEs [From t = 0 to t = Tr]:
-        # TODO: llavors el 0.5 no caldria
         self.t_p_f = 0.5 * (self.T_r) * (1.0 + self.Xt)
         # Solve the Orbit ODEs for the interval t in [0, Tr]:
         # chi_p_0 and phi_p_0 are hardwired to 0 because we want to start at r_p = r_peri
@@ -261,9 +273,6 @@ class Physical_Quantities:
 
         # Computation of the Particle Radial Location [Tortoise Coordinate]:
         self.rs_p_f = self.r_p_f - 2.0 * np.log(0.5 * (self.r_p_f) - 1.0)
-        rs_apo = self.r_apo - 2 * np.log(0.5 * self.r_apo - 1)
-        rs_peri = self.r_peri - 2 * np.log(0.5 * self.r_peri - 1)
-        rs = self.Xt * (rs_apo - rs_peri) / 2 + (rs_apo + rs_peri) / 2
 
         # Uniform Grid for the Schwarzschild and Tortoise Radial Coordinates: r_p, rs_p
         self.r_p = self.r_peri + ((self.r_apo - self.r_peri) / self.N_OD) * np.arange(self.N_OD + 1)
@@ -404,7 +413,7 @@ class Physical_Quantities:
     # ------------------------------------------------------------------------
 
     def saving(self):
-        """Save resulting modes"""
+        """Save resulting modes with pickle to restults folder"""
         logging.info("FRED RUN %f: Saving results", self.run)
         if os.path.isfile("results/R_H.pkl"):
             folder = time.strftime("results/%Y-%m-%d_%H:%M")
@@ -427,6 +436,9 @@ class Physical_Quantities:
     # ------------------------------------------------------------------------
 
     def read(self, folder="results"):
+        """Read resulting modes with peackel from results folder
+        folder : str, default 'results'
+            folder where results are stored"""
         def _pickle_load(var_str, directory=folder):
             object_name = directory + "/" + var_str + ".pkl"
             object_to_load = pickle.load(open(object_name, "rb"))

@@ -6,7 +6,6 @@ import time
 import datetime
 import logging
 import traceback
-import pickle
 import argparse
 import pandas as pd
 import numpy as np
@@ -77,7 +76,13 @@ def init():
 
 
 def main(df, resfilename, args):
-    """Execute main program"""
+    """Execute main program
+    df : pandas DataFrame
+        contains input parameters
+    resfilename : str
+        name of the results file
+    args : object
+        arguments form argparse"""
 
     start_time = time.time()  # Initialize clock
 
@@ -85,8 +90,21 @@ def main(df, resfilename, args):
 
     # Starting the different Runs in the Parameter File 'data'
     for run in range(N_runs):
-        PP = main_run(df, run, resfilename, args)
-        PP.saving()
+        try:
+            PP = main_run(df, run, resfilename, args)
+        except Exception as ex:
+            logging.error("Error in main_run in run %d", run)
+            sys.stdout.write(f"{repr(ex)}\n")
+            traceback.print_exc(ex)
+
+        """
+        try:
+            PP.saving()
+        except Exception as ex:
+            logging.error("Error saving with pickle in run %d", run)
+            sys.stdout.write(f"{repr(ex)}\n")
+            traceback.print_exc(ex)
+        """
 
     # Final Time after Computations
     end_time = time.time()
@@ -99,7 +117,16 @@ def main(df, resfilename, args):
 
 
 def main_run(df, run, resfilename, args):
-    """Perform computation for given run number"""
+    """Perform computation for given run number
+    df : pandas DataFrame
+        contains input parameters
+    run : int
+        number of run
+    resfilename : str
+        name of the results file
+    args : object
+        arguments form argparse"""
+
     # Set Clock to measure the Computational Time
     run_start_time = time.time()
 
@@ -157,10 +184,18 @@ def main_run(df, run, resfilename, args):
 # ---------------------------------------------------------------------
 
 
+# TODO change name of function
 def do_mode(ll, mm, nf, PP, run, save):
     """Computing the Bare Field Mode with Frequency omega_mn
-    [REMEMBER: Psi is the scalar field and Phi its radial (tortoise) derivative]"""
-    # TODO change name of function
+    [REMEMBER: Psi is the scalar field and Phi its radial (tortoise) derivative]
+    ll, mm, nf : int
+        mode indices
+    PP : class instance
+        contains all parameters
+    run : int, default 0
+        id to distinguish several runs
+    save = bool, default False
+        choose to save results with pickle"""
 
     compute_mode(ll, mm, nf, PP, save=save)
 
@@ -180,7 +215,11 @@ def do_mode(ll, mm, nf, PP, run, save):
 
 
 def project_geodesic(PP, run):
-    """Project the geodesic into the Particle Domains (from Horizon to Infinity)"""
+    """Project the geodesic into the Particle Domains (from Horizon to Infinity)
+    PP : class instance
+        contains all parameters
+    run : int, default 0
+        id to distinguish several runs"""
     PP.t_p[0] = PP.t_p_f[0]
     PP.phi_p[0] = PP.phi_p_f[0]
     PP.t_p[PP.N_OD] = PP.t_p_f[PP.N_time]
@@ -204,7 +243,11 @@ def project_geodesic(PP, run):
 
 
 def singular_part(PP, run):
-    """Computation of the Singular Part of the Self-Force"""
+    """Computation of the Singular Part of the Self-Force
+    PP : class instance
+        contains all parameters
+    run : int, default 0
+        id to distinguish several runs"""
 
     # Schwarzschild Metric Function f at tbe Particle Location:
     f_p = 1 - 2 / PP.r_p
@@ -256,7 +299,15 @@ def singular_part(PP, run):
 
 
 def run_prints(PP, run, resfilename, run_start_time):
-    """Printing results"""
+    """Printing results
+    PP : class instance
+        contains all parameters
+    run : int, default 0
+        id to distinguish several runs
+    resfilename : str
+        name of the results file
+    run_start_time : float
+        time when the run started"""
     # fmt: off
     # Taking end time of the Run and computing total time for the Run:
     run_end_time = time.time()
@@ -318,12 +369,7 @@ if __name__ == "__main__":
 
     logging.info("julia imports done")
     # ------------------------------------------------------
+
     setup_time = time.time()
     logging.info("Setup Time: %d seconds", setup_time - start_time)
-
-    try:
-        main(df, resfilename, args)
-    except Exception as ex:
-        logging.error("Error in main program")
-        sys.stdout.write(f"{repr(ex)}\n")
-        traceback.print_exc(ex)
+    main(df, resfilename, args)

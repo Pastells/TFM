@@ -21,16 +21,18 @@ function regge_wheeler_potential(rstar, ll)
 
     Vl =  2 * exp(xstar - xsch) * (cb + 2 / rsch) / (rsch^3)
 
+    # println("rstar ", rstar, " Vl ", Vl)
+
     return Vl
 end
 
 # -----------------------------------------------
 
 """ODE system that determines the solution to the Master Equation in the Horizon Domain"""
-function RHS_HD(u, p, t)
+function RHS_HD(u, p, rho)
 
     ll, w_mn, PP = p
-    rho = t
+    # println("rho ", rho)
     re_R, im_R, re_Q, im_Q = u
     R = re_R + 1im * im_R
     Q = re_Q + 1im * im_Q
@@ -45,8 +47,10 @@ function RHS_HD(u, p, t)
         # => R = A exp(-i w_mn epsilon), dR = -i w_mn A exp(-i w_mn epsilon)
         if epsilon_rho < 1e-6
 
-            dR = -1im * w_mn * R * exp(-1im * w_mn * epsilon_rho)
-            dQ = -(w_mn^2) * R * exp(-1im * w_mn * epsilon_rho)
+            # dR = -1im * w_mn * R * exp(-1im * w_mn * epsilon_rho)
+            # dQ = -(w_mn^2) * R * exp(-1im * w_mn * epsilon_rho)
+            dR = -1im * w_mn * R
+            dQ = -1im * w_mn * Q
 
             # Integration not close to the Horizon
         else
@@ -125,9 +129,8 @@ end
 # -----------------------------------------------
 
 """ODE system that determines the solution to the Master Equation in the Horizon Orbital Domain"""
-function RHS_HOD(u, p, t)
+function RHS_HOD(u, p, rho)
     ll, w_mn = p
-    rho = t
     re_R, im_R, re_Q, im_Q = u
     R = re_R + 1im * im_R
     Q = re_Q + 1im * im_Q
@@ -144,9 +147,9 @@ end
 
 """ODE system that determines the solution to the Master Equation in the Infinity Orbital Domain
 Defined backward, e.i. rho -> -rho, so can be integrated from right to left"""
-function RHS_IOD(u, p, t)
+function RHS_IOD(u, p, rho)
     ll, w_mn = p
-    rho = t
+    rho = -rho
     re_R, im_R, re_Q, im_Q = u
     R = re_R + 1im * im_R
     Q = re_Q + 1im * im_Q
@@ -163,9 +166,10 @@ end
 
 """ODE system that determines the solution to the Master Equation in the Infinity Domain
 Defined backward, e.i. rho -> -rho, so can be integrated from right to left"""
-function RHS_ID(u, p, t)
+function RHS_ID(u, p, rho)
     ll, w_mn, PP = p
-    rho = t
+    rho = -rho
+    # println("rho ", rho, " rho_I ", PP.rho_I, " rho_IC ", PP.rho_IC, " rho_IS ", PP.rho_IS)
     re_R, im_R, re_Q, im_Q = u
     re_RI, im_RI, re_QI, im_QI = u
     R = re_R + 1im * im_R
@@ -180,30 +184,32 @@ function RHS_ID(u, p, t)
 
         # Integration near (null) Infinity
         if epsilon_rho < 1e-6
+            # println("close to infinity")
 
             # Integration for the Particular Case of Zero-Frequency Modes
-            if w_mn < 1e-8
-                println("w_mn < 1e-8 region")
+            if abs(w_mn) < 1e-8
+                # println("w_mn < 1e-8 region")
 
-                rho_1 = 1/PP.rho_I
+                rho_I_1 = 1/PP.rho_I
                 ell_1 = ll + 1
                 ell_2 = ll + 2
                 ell_32 = ll + 3/2
 
                 sigma0 = 1
 
-                sigma1 = sigma0 * rho_1 * (cb - rho_1*(cb-1)) / ell_1
+                sigma1 = sigma0 * (cb - rho_I_1*(cb-1)) * rho_I_1 / ell_1
 
-                sigma2 = sigma0 / (4*ell_1*ell_32 * PP.rho_I^2) * (
-                           2 * (ll^4 + 2*ll^3 - ll^2 - 4*ll - 1) * (rho_1^2) +
-                         - 4 * ell_1*ell_32 * (ll*ell_1-1) * rho_1 + 2*ll*ell_1^2*ell_32
+                sigma2 = sigma0 / (4 * ell_1 * ell_32 * PP.rho_I^2) * (
+                           2 * (ll^4 + 2*ll^3 - ll^2 - 4*ll - 1) * rho_I_1^2 +
+                         - 4 * ell_1*ell_32 * (ll*ell_1-1) * rho_I_1 +
+                         + 2*ll*ell_1^2*ell_32
                         )
 
-                sigma3 = sigma0 / (12*ell_2*ell_1*ell_32 * PP.rho_I^3) * (
-                            - 2 * (ll^2+ll-1)*(ll^4+2*ll^3-ll^2-8*ll-7) * (rho_1^3) +
-                            + 6 * ell_2^2 * (ll^4+2*ll^3-ll^2-4*ll-1) * (rho_1^2) +
-                            - 6 * ell_2^2 * ell_1*ell_32*(ll^2+ll-1) * rho_1 +
-                            + 2 * ell_2^2 * ell_1^2*ll*ell_32
+                sigma3 = sigma0 / (12 * ell_2 * ell_1 * ell_32 * PP.rho_I^3) * (
+                            - 2 * (ll^2+ll-1)*(ll^4+2*ll^3-ll^2-8*ll-7) * rho_I_1^3 +
+                            + 6 * ell_2^2 * (ll^4+2*ll^3-ll^2-4*ll-1) * rho_I_1^2 +
+                            - 6 * ell_2^2 * ell_1 * ell_32 * (ll^2+ll-1) * rho_I_1 +
+                            + 2 * ell_2^2 * ell_1^2 * ll * ell_32
                         )
 
                 Sigma = sigma0 + sigma1 * epsilon_rho + sigma2 * epsilon_rho^2 + sigma3 * epsilon_rho^3
@@ -213,7 +219,7 @@ function RHS_ID(u, p, t)
                 # Particular Case: ll = 0
                 if ll == 0
                     dR = -dSigmadepsilon
-                    dQ = -d2Sigmadepsilon2
+                    dQ = d2Sigmadepsilon2
 
                 # Particular Case: ll = 1
                 elseif ll == 1
@@ -223,16 +229,17 @@ function RHS_ID(u, p, t)
 
                 # All other ll different from 0 and 1
                 else
-                    dR = -epsilon_rho^ll * ( ll*Sigma + epsilon_rho*dSigmadepsilon )
+                    dR = -epsilon_rho^(ll-1) * ( ll*Sigma + epsilon_rho*dSigmadepsilon )
                     dQ = epsilon_rho^(ll-2) * (
                             ll*(ll-1)*Sigma +
-                            + 2*ll*epsilon_rho*dSigmadepsilon +
-                            + (epsilon_rho^2)*d2Sigmadepsilon2
+                            + 2*ll*epsilon_rho * dSigmadepsilon +
+                            + epsilon_rho^2 * d2Sigmadepsilon2
                             )
                 end
 
             # Integration for non-zero Frequency Modes
             else
+                # println("w_mn > 1e-8 region")
                 qireal = 0
                 qiimag = w_mn*re_RI*(1 - cb / (2*PP.rho_I^2 * w_mn^2))
 
@@ -285,7 +292,6 @@ function RHS_ID(u, p, t)
                 dQ_imag = -q1imag - 2*q2imag*epsilon_rho - 3*q3imag*epsilon_rho^2
                 dR = dR_real + 1im * dR_imag
                 dQ = dQ_real + 1im * dQ_imag
-
             end
 
         # Integration not "close" to (null) Infinity
@@ -298,10 +304,10 @@ function RHS_ID(u, p, t)
             rsch3 = rsch2 * rsch
 
             f = 1 - 2 / rsch
-            regular_potential_factor = f * ( ll * (ll + 1) + 2 * (PP.sigma_spin) / rsch)
-            romega2 = (rho - 2 * Omega * log(xsch)) ^ 2
+            regular_potential_factor = f * (cb + 2 * PP.sigma_spin / rsch)
+            romega2 = (rho - 2 * Omega * log(xsch))^2
 
-            H = 1 - Omega ^ 2
+            H = 1 - Omega^2
             H_plus_one = 1 + H
             DH = (2 / PP.rho_I) * Omega
             DH_over_1minusH = (2 / PP.rho_H) / Omega
@@ -311,7 +317,7 @@ function RHS_ID(u, p, t)
 
             dR = Q
             dQ = DH_over_1minusH * (Q + 1im* w_mn * R) + 2im * w_mn * H * Q_over_omega2 +
-             - H_plus_one * (w_mn ^ 2) * R_over_omega2 + regular_potential_factor * R_over_omega2 / romega2
+                - H_plus_one * (w_mn ^ 2) * R_over_omega2 + regular_potential_factor * R_over_omega2 / romega2
 
         end
 
@@ -329,7 +335,7 @@ function RHS_ID(u, p, t)
         d2Omega_drho2 = -(2 * f1 + rho * f2) / PP.rho_I
 
         LI = Omega - rho * dOmega_drho
-        H = 1 - (Omega ^ 2) / LI
+        H = 1 - Omega^2 / LI
         one_plus_H = 1 + H
         one_minus_H = 1 - H
         DH = -(Omega / LI) * (2 * dOmega_drho + rho * (Omega / LI) * d2Omega_drho2)
@@ -339,11 +345,11 @@ function RHS_ID(u, p, t)
         rsch = 2 * (1 + xsch)
         rsch2 = rsch * rsch
         rsch3 = rsch2 * rsch
-        Vl = xsch * (2 / rsch3) * (ll * (ll + 1) + 2 * (PP.sigma_spin) / rsch)
+        Vl = xsch * (2 / rsch3) * (cb + 2 * PP.sigma_spin / rsch)
 
         dR = Q
         dQ = (DH / one_minus_H) * (Q + 1im * w_mn * R) + 2im * w_mn * (H / one_minus_H) * Q +
-         -(one_plus_H / one_minus_H) * (w_mn ^ 2) * R + (Vl / one_minus_H^2) * R
+            -(one_plus_H / one_minus_H) * (w_mn ^ 2) * R + (Vl / one_minus_H^2) * R
 
     elseif rho <= PP.rho_IS
         xsch = schw.r_tortoise_to_x_schwarzschild(rho)  # rstar = rho
@@ -352,7 +358,7 @@ function RHS_ID(u, p, t)
         rsch2 = rsch * rsch
         rsch3 = rsch2 * rsch
 
-        Vl = xsch * (2 / rsch3) * (ll * (ll + 1) + 2 * (PP.sigma_spin) / rsch)
+        Vl = xsch * (2 / rsch3) * (cb + 2 * PP.sigma_spin / rsch)
 
         dR = Q
         dQ = (Vl - w_mn^2) * R
@@ -360,8 +366,9 @@ function RHS_ID(u, p, t)
     else
         print( "rho= ", rho, "  Out of Domain error during ODE Integration at the Horizon Domain")
     end
+    # println("dR ", dR, " dQ ", dQ)
 
-    @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
+    @SVector [-real(dR), -imag(dR), -real(dQ), -imag(dQ)]
 end
 
 # -----------------------------------------------
@@ -370,24 +377,22 @@ end
    uses static arrays to improve perfomance
    save :: keep HD and ID modes solutions"""
 function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
-    omega_mn = nf * (PP.omega_r) + mm * (PP.omega_phi)
-    p = @SVector [ll,omega_mn,PP]
+    w_mn = nf * PP.omega_r + mm * PP.omega_phi
+    p = @SVector [ll,w_mn,PP]
 
     # ----- HD -----
-    # print("HD")
-    u0 = @SVector [1, 0, 0, -p[2]]
-    tspan = (PP.rho_H_plus, PP.rho_peri)
-    prob = ODEProblem(RHS_HD,u0,tspan,p)
+    u0 = @SVector [1, 0, 0, -w_mn]
+    rhospan = (PP.rho_H_plus, PP.rho_peri)
+    prob = ODEProblem(RHS_HD,u0,rhospan,p)
     # save at whole array or only last point
     save ? saveat=PP.rho_HD : saveat=PP.rho_peri
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=saveat)
 
     # ----- HOD -----
-    # print("HOD")
     u0 = last(sol.u)
     u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
-    tspan = (PP.rho_peri, PP.rho_apo)
-    prob = ODEProblem(RHS_HOD,u0,tspan,p)
+    rhospan = (PP.rho_peri, PP.rho_apo)
+    prob = ODEProblem(RHS_HOD,u0,rhospan,p)
     sol2 = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD)
     lambda_minus = last(sol2.u)[1]
 
@@ -406,23 +411,21 @@ function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
     end
 
     # ----- ID (backwards) -----
-    # print("ID")
-    u0 = @SVector [1,0,0,p[2]]
-    tspan = (-PP.rho_I,-PP.rho_apo)
-    prob = ODEProblem(RHS_ID,u0,tspan,p)
+    u0 = @SVector [1, 0, 0, w_mn]
+    rhospan = (-PP.rho_I_minus, -PP.rho_apo)
+    prob = ODEProblem(RHS_ID, u0, rhospan, p)
     # save at whole array or only last point
     save ? saveat=PP.rho_ID : saveat=PP.rho_apo
-    # reverse time t -> -t, by changing saveat sign
+    # reverse rho -> -rho, by changing saveat sign
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=-saveat)
 
 
     # ----- IOD (backwards) -----
-    # print("IOD")
     u0 = last(sol.u)
     u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
-    tspan = (-PP.rho_apo, -PP.rho_peri)
-    prob = ODEProblem(RHS_IOD,u0,tspan,p)
-    # reverse time t -> -t, by changing saveat sign
+    rhospan = (-PP.rho_apo, -PP.rho_peri)
+    prob = ODEProblem(RHS_IOD, u0, rhospan, p)
+    # reverse rho -> -rho, by changing saveat sign
     sol2 = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=-PP.rho_IOD)
     lambda_plus = last(sol2.u)[1]
 
