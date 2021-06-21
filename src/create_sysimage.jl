@@ -1,6 +1,7 @@
 using PackageCompiler
 using Pkg
 Pkg.activate(".")
-create_sysimage([:OrdinaryDiffEq, :StaticArrays, :Markdown],
-    sysimage_path="sysimage.so",
-    precompile_execution_file=["src/mode_comp.jl","src/hyperboloidal_compactification_tanh.jl"])
+# Pkg.add("Plots")
+create_sysimage([:OrdinaryDiffEq, :StaticArrays, :Markdown, :Plots],
+    sysimage_path="sysimage_plots.so",
+    precompile_execution_file=["src/mode_comp.jl","src/compactification.jl"])

@@ -197,7 +197,10 @@ def do_mode(ll, mm, nf, PP, run, save):
     save = bool, default False
         choose to save results with pickle"""
 
-    compute_mode(ll, mm, nf, PP, save=save)
+    if 1 == 0 == ll == mm == nf:
+        mode_0(PP)
+    else:
+        compute_mode(ll, mm, nf, PP, save=save)
 
     indices = (ll, mm, nf + PP.N_Fourier)
 
@@ -212,6 +215,16 @@ def do_mode(ll, mm, nf, PP, run, save):
 
 
 # ---------------------------------------------------------------------
+
+
+def mode_0(PP):
+    """Analytical result of mode 0,0,0"""
+    indices = (0, 0, PP.N_Fourier)
+    PP.R_H[indices] = PP.single_R_HOD
+    PP.R_I[indices] = PP.single_R_IOD
+    PP.Q_H[indices] = PP.single_Q_HOD
+    PP.Q_I[indices] = PP.single_Q_IOD
+    pass
 
 
 def project_geodesic(PP, run):
@@ -357,11 +370,13 @@ if __name__ == "__main__":
         import julia
 
         # jl = julia.Julia(compiled_modules=False, depwarn=True)
-        jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage.so")
+        jl = julia.Julia(
+            compiled_modules=False, depwarn=True, sysimage="sysimage_plots.so"
+        )
         from julia import Main
 
         Main.include("src/mode_comp.jl")
-        compute_mode = Main.eval("compute_mode")  # global function
+        compute_mode = Main.eval("compute_check")  # global function
     except Exception as ex:
         logging.error("Error importing julia")
         sys.stdout.write(f"{repr(ex)}\n")

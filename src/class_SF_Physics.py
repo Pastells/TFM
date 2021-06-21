@@ -124,7 +124,7 @@ class Physical_Quantities:
         based on approximate solutions of the ODEs both near the Horizon and near Infinity.
         """
 
-        epsilon_H = 2.8e-15
+        epsilon_H = 1
         epsilon_I = 1
         self.rho_H_plus = self.rho_H + epsilon_H
         self.rho_I_minus = self.rho_I - epsilon_I
@@ -134,7 +134,7 @@ class Physical_Quantities:
 
         if self.save:
             self.rho_HD = np.linspace(self.rho_H_plus, self.rho_peri, self.N_HD + 1)
-            self.rho_ID = np.linspace(self.rho_I, self.rho_apo, self.N_ID + 1)
+            self.rho_ID = np.linspace(self.rho_I_minus, self.rho_apo, self.N_ID + 1)
 
     # ------------------------------------------------------------------------
 
@@ -309,59 +309,6 @@ class Physical_Quantities:
     # Functions
     # ------------------------------------------------------------------------
 
-    def complete_m_mode(self, ll, mm):
-        """Apply the missing factor to the Radial Component of the Bare (full)
-        Self-Force at each particle location
-        Add contribution of the m_Mode to the l_Mode of the Radial Component"""
-
-        weight = (
-            self.charge / self.r_p
-            * self.d_lm[ll, mm]
-            * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
-        )
-
-        self.SF_F_r_lm_H[ll, mm] *= weight
-        self.SF_F_r_lm_I[ll, mm] *= weight
-
-        # Add contribution to l-Mode (appendix A)
-        if mm == 0:
-            self.SF_F_r_l_H[ll] += self.SF_F_r_lm_H[ll, mm]
-            self.SF_F_r_l_I[ll] += self.SF_F_r_lm_I[ll, mm]
-        else:
-            self.SF_F_r_l_H[ll] += 2 * np.real(self.SF_F_r_lm_H[ll, mm])
-            self.SF_F_r_l_I[ll] += 2 * np.real(self.SF_F_r_lm_I[ll, mm])
-
-    # ------------------------------------------------------------------------
-
-    def complete_l_mode(self, ll):
-        """substract l-Mode contribution from the Singular field"""
-        # Computation of the l-Mode of the Radial Component of the Regular Self-Force:
-        self.SF_R_r_l_H[ll] = self.SF_F_r_l_H[ll] - self.SF_S_r_l_H[ll]
-        self.SF_R_r_l_I[ll] = self.SF_F_r_l_I[ll] - self.SF_S_r_l_I[ll]
-
-        # Total Regular Self-Force
-        self.SF_r_H = self.SF_r_H + self.SF_R_r_l_H[ll]
-        self.SF_r_I = self.SF_r_I + self.SF_R_r_l_I[ll]
-
-    # ------------------------------------------------------------------------
-
-    def store(self, indices):
-        """Save solution from compute_mode into permanent ndarray
-        indices = (ll, mm, nf + PP.N_Fourier)"""
-
-        self.R_H[indices] = self.single_R_HOD
-        self.R_I[indices] = self.single_R_IOD
-        self.Q_H[indices] = self.single_Q_HOD
-        self.Q_I[indices] = self.single_Q_IOD
-
-        if self.save:
-            self.R_HD[indices] = self.single_R_HD
-            self.R_ID[indices] = self.single_R_ID
-            self.Q_HD[indices] = self.single_Q_HD
-            self.Q_ID[indices] = self.single_Q_ID
-
-    # ------------------------------------------------------------------------
-
     def rescale_mode(self, ll, mm, nf):
         """Compute the Values of the Field Modes (Phi,Psi)lmn [~ (R,Q)lmn in Frequency Domain] at the Particle Location
         at the different Time Collocation Points that satisfy the Boundary Conditions imposed by the Jump Conditions.
@@ -394,12 +341,12 @@ class Physical_Quantities:
         self.Q_I[indices] *= Cp_lmn
 
         # Contribution of the Fourier Mode 'nf' (l m nf) to the Radial Component of the Bare (full) Self-Force
-        # [NOTE: This is the contribution up to a multiplicative factor that is applied below]
+        # [NOTE: This is the contribution up to a multiplicative factor, applied in 'complete_m_mode']
         exp_factor = np.exp(-1j * nf * self.omega_r * self.t_p)
         self.SF_F_r_lm_H[ll, mm] += (self.Q_H[indices] / fp - self.R_H[indices] / self.r_p) * exp_factor
         self.SF_F_r_lm_I[ll, mm] += (self.Q_I[indices] / fp - self.R_I[indices] / self.r_p) * exp_factor
 
-        # print( f"l={ll} m={mm} n={nf}: c_H[{nf}]={self.SF_F_r_lm_H[ll, mm]}  c_I[{nf}]={self.SF_F_r_lm_I[ll, mm]}")
+        # print(f"l={ll} m={mm} n={nf}: c_H[{nf}]={self.SF_F_r_lm_H[ll, mm]}  c_I[{nf}]={self.SF_F_r_lm_I[ll, mm]}")
 
         # Estimate error and store contribution
         self.Estimated_Error = np.maximum(
@@ -409,6 +356,64 @@ class Physical_Quantities:
 
         self.Accumulated_SF_F_r_lm_H[ll, mm] = self.SF_F_r_lm_H[ll, mm]
         self.Accumulated_SF_F_r_lm_I[ll, mm] = self.SF_F_r_lm_I[ll, mm]
+
+    # ------------------------------------------------------------------------
+
+    def complete_m_mode(self, ll, mm):
+        """Apply the missing factor to the Radial Component of the Bare (full)
+        Self-Force at each particle location
+        Add contribution of the m_Mode to the l_Mode of the Radial Component"""
+
+        weight = (
+            self.charge / self.r_p
+            * self.d_lm[ll, mm]
+            * np.exp(1j * mm * (self.phi_p - self.omega_phi * self.t_p))
+        )
+
+        self.SF_F_r_lm_H[ll, mm] *= weight
+        self.SF_F_r_lm_I[ll, mm] *= weight
+
+        # Add contribution to l-Mode (appendix A)
+        if mm == 0:
+            self.SF_F_r_l_H[ll] += self.SF_F_r_lm_H[ll, mm]
+            self.SF_F_r_l_I[ll] += self.SF_F_r_lm_I[ll, mm]
+        else:
+            self.SF_F_r_l_H[ll] += 2 * np.real(self.SF_F_r_lm_H[ll, mm])
+            self.SF_F_r_l_I[ll] += 2 * np.real(self.SF_F_r_lm_I[ll, mm])
+
+    # ------------------------------------------------------------------------
+
+    def complete_l_mode(self, ll):
+        """substract l-Mode contribution from the Singular field"""
+        # Computation of the l-Mode of the Radial Component of the Regular Self-Force:
+        print(self.SF_R_r_l_H[ll][-1], self.SF_S_r_l_H[ll][-1])
+        print(self.SF_R_r_l_I[ll][-1], self.SF_S_r_l_I[ll][-1])
+        self.SF_R_r_l_H[ll] = self.SF_F_r_l_H[ll] - self.SF_S_r_l_H[ll]
+        self.SF_R_r_l_I[ll] = self.SF_F_r_l_I[ll] - self.SF_S_r_l_I[ll]
+        print(self.SF_R_r_l_H[ll][-1])
+        print(self.SF_R_r_l_I[ll][-1])
+
+        # Total Regular Self-Force
+        self.SF_r_H = self.SF_r_H + self.SF_R_r_l_H[ll]
+        self.SF_r_I = self.SF_r_I + self.SF_R_r_l_I[ll]
+
+    # ------------------------------------------------------------------------
+
+    def store(self, indices):
+        """Save solution from compute_mode into permanent ndarray
+        Reverse arrays from infinity region, as the integration is backwards
+        indices = (ll, mm, nf + PP.N_Fourier)"""
+
+        self.R_H[indices] = self.single_R_HOD
+        self.R_I[indices] = self.single_R_IOD[::-1]
+        self.Q_H[indices] = self.single_Q_HOD
+        self.Q_I[indices] = self.single_Q_IOD[::-1]
+
+        if self.save:
+            self.R_HD[indices] = self.single_R_HD
+            self.R_ID[indices] = self.single_R_ID[::-1]
+            self.Q_HD[indices] = self.single_Q_HD
+            self.Q_ID[indices] = self.single_Q_ID[::-1]
 
     # ------------------------------------------------------------------------
 

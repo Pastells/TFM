@@ -1,6 +1,8 @@
 using StaticArrays
 using OrdinaryDiffEq
 using PyCall
+using Plots
+using LaTeXStrings
 
 # Get absolute path
 FOLDER = normpath(joinpath(@__FILE__,"..",".."))
@@ -10,6 +12,8 @@ loader = machinery.SourceFileLoader("Schwarzschild", FOLDER * "/src/Schwarzschil
 schw = loader.load_module("Schwarzschild")
 include("./compactification.jl")
 
+const ABSTOL = 1e-12
+const RTOL = 1e-8
 # -----------------------------------------------
 
 function regge_wheeler_potential(rstar, ll)
@@ -30,9 +34,10 @@ end
 
 """ODE system that determines the solution to the Master Equation in the Horizon Domain"""
 function RHS_HD(u, p, rho)
-
-    ll, w_mn, PP = p
-    # println("rho ", rho)
+    ll, w_mn, PP, backward = p
+    if backward
+        rho = -rho
+    end
     re_R, im_R, re_Q, im_Q = u
     R = re_R + 1im * im_R
     Q = re_Q + 1im * im_Q
@@ -123,6 +128,10 @@ function RHS_HD(u, p, rho)
         print("rho= ",rho,"  Out of Domain error during ODE Integration at the Horizon Domain")
     end
 
+    if backward
+        dR, dQ = -dR, -dQ
+    end
+
     @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
@@ -130,7 +139,10 @@ end
 
 """ODE system that determines the solution to the Master Equation in the Horizon Orbital Domain"""
 function RHS_HOD(u, p, rho)
-    ll, w_mn = p
+    ll, w_mn, _, backward = p
+    if backward
+        rho = -rho
+    end
     re_R, im_R, re_Q, im_Q = u
     R = re_R + 1im * im_R
     Q = re_Q + 1im * im_Q
@@ -140,6 +152,10 @@ function RHS_HOD(u, p, rho)
     dR = Q
     dQ = (Vl - w_mn^2) * R
 
+    if backward
+        dR, dQ = -dR, -dQ
+    end
+
     @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
@@ -148,16 +164,22 @@ end
 """ODE system that determines the solution to the Master Equation in the Infinity Orbital Domain
 Defined backward, e.i. rho -> -rho, so can be integrated from right to left"""
 function RHS_IOD(u, p, rho)
-    ll, w_mn = p
-    rho = -rho
+    ll, w_mn, _, backward = p
+    if backward
+        rho = -rho
+    end
     re_R, im_R, re_Q, im_Q = u
     R = re_R + 1im * im_R
     Q = re_Q + 1im * im_Q
 
     Vl = regge_wheeler_potential(rho, ll)
 
-    dR = -Q
-    dQ = -(Vl - w_mn^2) * R
+    dR = Q
+    dQ = (Vl - w_mn^2) * R
+
+    if backward
+        dR, dQ = -dR, -dQ
+    end
 
     @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
@@ -167,8 +189,10 @@ end
 """ODE system that determines the solution to the Master Equation in the Infinity Domain
 Defined backward, e.i. rho -> -rho, so can be integrated from right to left"""
 function RHS_ID(u, p, rho)
-    ll, w_mn, PP = p
-    rho = -rho
+    ll, w_mn, PP, backward = p
+    if backward
+        rho = -rho
+    end
     # println("rho ", rho, " rho_I ", PP.rho_I, " rho_IC ", PP.rho_IC, " rho_IS ", PP.rho_IS)
     re_R, im_R, re_Q, im_Q = u
     re_RI, im_RI, re_QI, im_QI = u
@@ -368,7 +392,11 @@ function RHS_ID(u, p, rho)
     end
     # println("dR ", dR, " dQ ", dQ)
 
-    @SVector [-real(dR), -imag(dR), -real(dQ), -imag(dQ)]
+    if backward
+        dR, dQ = -dR, -dQ
+    end
+
+    @SVector [real(dR), imag(dR), real(dQ), imag(dQ)]
 end
 
 # -----------------------------------------------
@@ -376,14 +404,14 @@ end
 """Solve both regions, starting from the horizon and infinity
    uses static arrays to improve perfomance
    save :: keep HD and ID modes solutions"""
-function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
+function compute_mode(ll, mm, nf, PP; method=KenCarp5(), save=false)
     w_mn = nf * PP.omega_r + mm * PP.omega_phi
-    p = @SVector [ll,w_mn,PP]
+    p = @SVector [ll,w_mn,PP, false]
 
     # ----- HD -----
     u0 = @SVector [1, 0, 0, -w_mn]
     rhospan = (PP.rho_H_plus, PP.rho_peri)
-    prob = ODEProblem(RHS_HD,u0,rhospan,p)
+    prob = ODEProblem(RHS_HD, u0, rhospan, p)
     # save at whole array or only last point
     save ? saveat=PP.rho_HD : saveat=PP.rho_peri
     sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=saveat)
@@ -392,7 +420,7 @@ function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
     u0 = last(sol.u)
     u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
     rhospan = (PP.rho_peri, PP.rho_apo)
-    prob = ODEProblem(RHS_HOD,u0,rhospan,p)
+    prob = ODEProblem(RHS_HOD, u0, rhospan, p)
     sol2 = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD)
     lambda_minus = last(sol2.u)[1]
 
@@ -410,6 +438,7 @@ function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
         PP.single_Q_HD = u_matrix[:,3] + 1im * u_matrix[:,4]
     end
 
+    p = @SVector [ll,w_mn,PP, true]
     # ----- ID (backwards) -----
     u0 = @SVector [1, 0, 0, w_mn]
     rhospan = (-PP.rho_I_minus, -PP.rho_apo)
@@ -441,4 +470,160 @@ function compute_mode(ll, mm, nf, PP; method=TRBDF2(), save=false)
         PP.single_R_ID = u_matrix[:,1] + 1im * u_matrix[:,2]
         PP.single_Q_ID = u_matrix[:,3] + 1im * u_matrix[:,4]
     end
+end
+
+
+
+# Methods:
+# TRBDF2() works except for n=0
+# AutoVern7(Rodas5() fails at ID
+# Rodas5() fails from start
+
+"""Solve both regions, starting from the horizon and infinity
+   uses static arrays to improve perfomance
+   save :: keep HD and ID modes solutions"""
+function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
+    w_mn = nf * PP.omega_r + mm * PP.omega_phi
+    p = @SVector [ll, w_mn, PP, false]
+
+    # ----- HD -----
+    u0 = @SVector [1, 0, 0, -w_mn]
+    rhospan = (PP.rho_H_plus, PP.rho_peri)
+    prob = ODEProblem(RHS_HD, u0, rhospan, p)
+    # save at whole array or only last point
+    save ? saveat=PP.rho_HD : saveat=PP.rho_peri
+    sol = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=saveat)
+
+    # ----- HD check -----
+    p = @SVector [ll, w_mn, PP, true]
+    u0 = last(sol.u)
+    u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
+    rhospan = (-PP.rho_peri, -PP.rho_H_plus)
+    prob = ODEProblem(RHS_HD, u0, rhospan, p)
+    # save at whole array or only last point
+    save ? saveat=PP.rho_HD : saveat=PP.rho_H_plus
+    check = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=-saveat)
+
+    uf = last(check.u)
+    error =  [abs(uf[1]-1), abs(uf[2]), abs(uf[3]), abs(uf[4]+w_mn)]
+    println(error)
+
+    sol_matrix = hcat(sol.u...)'
+    check_matrix = hcat(check.u...)'
+    plot(sol.t, sol_matrix[:,1], xlab=L"\rho", ylab=L"R_{%$ll,%$mm,%$nf}",
+        legend = :outertopleft, size = (900, 600), label="forward")
+    plot!(-check.t, check_matrix[:,1], label="backward")
+
+    # ----- HOD -----
+    p = @SVector [ll, w_mn, PP, false]
+    u0 = last(sol.u)
+    u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
+    rhospan = (PP.rho_peri, PP.rho_apo)
+    prob = ODEProblem(RHS_HOD, u0, rhospan, p)
+    sol2 = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=PP.rho_HOD)
+    lambda_minus = last(sol2.u)[1]
+
+    u_matrix = hcat(sol2.u...)'
+    u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
+
+    PP.single_R_HOD = u_matrix[:,1] + 1im * u_matrix[:,2]
+    PP.single_Q_HOD = u_matrix[:,3] + 1im * u_matrix[:,4]
+
+    # save HD region
+    if save
+        u_matrix = hcat(sol.u...)'
+        u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
+        PP.single_R_HD = u_matrix[:,1] + 1im * u_matrix[:,2]
+        PP.single_Q_HD = u_matrix[:,3] + 1im * u_matrix[:,4]
+    end
+
+    # ----- HOD check -----
+    p = @SVector [ll, w_mn, PP, true]
+    u0 = last(sol2.u)
+    u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
+    rhospan = (-PP.rho_apo, -PP.rho_peri)
+    prob = ODEProblem(RHS_HOD, u0, rhospan, p)
+    check = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=-PP.rho_IOD)
+
+    uf = last(check.u)
+    u0 = last(sol.u)
+    error =  [abs(uf[1]-u0[1]), abs(uf[2]-u0[2]), abs(uf[3]-u0[3]), abs(uf[4]-u0[4])]
+    println(error)
+
+    sol_matrix = hcat(sol2.u...)'
+    check_matrix = hcat(check.u...)'
+    plot!(sol2.t, sol_matrix[:,1], label="forward")
+    plot!(-check.t, check_matrix[:,1], label="backward")
+    savefig("Rm"*string(ll)*"_"*string(mm)*"_"*string(nf))
+
+    # ----- ID (backwards) -----
+    p = @SVector [ll, w_mn, PP, true]
+    u0 = @SVector [1, 0, 0, w_mn]
+    rhospan = (-PP.rho_I_minus, -PP.rho_apo)
+    prob = ODEProblem(RHS_ID, u0, rhospan, p)
+    # save at whole array or only last point
+    save ? saveat=PP.rho_ID : saveat=PP.rho_apo
+    # reverse rho -> -rho, by changing saveat sign
+    sol = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=-saveat)
+
+    # ----- ID check -----
+    p = @SVector [ll, w_mn, PP, false]
+    u0 = last(sol.u)
+    u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
+    rhospan = (PP.rho_apo, PP.rho_I_minus)
+    prob = ODEProblem(RHS_ID, u0, rhospan, p)
+    save ? saveat=PP.rho_ID : saveat=PP.rho_I_minus
+    check = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=saveat)
+    uf = last(check.u)
+    error =  [abs(uf[1]-1), abs(uf[2]), abs(uf[3]), abs(uf[4]-w_mn)]
+    println(error)
+
+    sol_matrix = hcat(sol.u...)'
+    check_matrix = hcat(check.u...)'
+    plot(-sol.t, sol_matrix[:,1], xlab=L"\rho", ylab=L"R_{%$ll,%$mm,%$nf}",
+        legend = :outertopleft, size = (900, 600), label="backward")
+    plot!(check.t, check_matrix[:,1], label="forward")
+
+
+    # ----- IOD (backwards) -----
+    p = @SVector [ll, w_mn, PP, true]
+    u0 = last(sol.u)
+    u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
+    rhospan = (-PP.rho_apo, -PP.rho_peri)
+    prob = ODEProblem(RHS_IOD, u0, rhospan, p)
+    # reverse rho -> -rho, by changing saveat sign
+    sol2 = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=-PP.rho_IOD)
+    lambda_plus = last(sol2.u)[1]
+
+    u_matrix = hcat(sol2.u...)'
+    u_matrix = u_matrix/lambda_plus  # λ⁺ = 1
+    PP.single_R_IOD = u_matrix[:,1] + 1im * u_matrix[:,2]
+    PP.single_Q_IOD = u_matrix[:,3] + 1im * u_matrix[:,4]
+
+    # Save ID region
+    if save
+        u_matrix = hcat(sol.u...)'
+        u_matrix = u_matrix/lambda_plus  # λ⁺ = 1
+        PP.single_R_ID = u_matrix[:,1] + 1im * u_matrix[:,2]
+        PP.single_Q_ID = u_matrix[:,3] + 1im * u_matrix[:,4]
+    end
+
+    # ----- IOD check -----
+    p = @SVector [ll, w_mn, PP, false]
+    u0 = last(sol2.u)
+    u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
+    rhospan = (PP.rho_peri, PP.rho_apo)
+    prob = ODEProblem(RHS_IOD, u0, rhospan, p)
+    check = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=PP.rho_HOD)
+
+    uf = last(check.u)
+    u0 = last(sol.u)
+    error =  [abs(uf[1]-u0[1]), abs(uf[2]-u0[2]), abs(uf[3]-u0[3]), abs(uf[4]-u0[4])]
+    println(error)
+
+    sol_matrix = hcat(sol2.u...)'
+    check_matrix = hcat(check.u...)'
+    plot!(-sol2.t, sol_matrix[:,1], label="backward")
+    plot!(check.t, check_matrix[:,1], label="forward")
+    savefig("Rp"*string(ll)*"_"*string(mm)*"_"*string(nf))
 end
