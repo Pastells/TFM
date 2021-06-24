@@ -1,7 +1,9 @@
 using StaticArrays
 using OrdinaryDiffEq
 using PyCall
-using Plots
+using Plots.PlotMeasures
+using Plots; pyplot(size=(1500, 1000), bottom_margin=5mm, linewidth=1.5, legend = :outertopleft)
+Plots.scalefontsizes(2)
 using LaTeXStrings
 
 # Get absolute path
@@ -12,8 +14,10 @@ loader = machinery.SourceFileLoader("Schwarzschild", FOLDER * "/src/Schwarzschil
 schw = loader.load_module("Schwarzschild")
 include("./compactification.jl")
 
+# Global variables
 const ABSTOL = 1e-12
 const RTOL = 1e-8
+const METHOD = KenCarp5()
 # -----------------------------------------------
 
 function regge_wheeler_potential(rstar, ll)
@@ -24,8 +28,6 @@ function regge_wheeler_potential(rstar, ll)
     # exp(xstar-x) = x
 
     Vl =  2 * exp(xstar - xsch) * (cb + 2 / rsch) / (rsch^3)
-
-    # println("rstar ", rstar, " Vl ", Vl)
 
     return Vl
 end
@@ -193,7 +195,6 @@ function RHS_ID(u, p, rho)
     if backward
         rho = -rho
     end
-    # println("rho ", rho, " rho_I ", PP.rho_I, " rho_IC ", PP.rho_IC, " rho_IS ", PP.rho_IS)
     re_R, im_R, re_Q, im_Q = u
     re_RI, im_RI, re_QI, im_QI = u
     R = re_R + 1im * im_R
@@ -208,11 +209,9 @@ function RHS_ID(u, p, rho)
 
         # Integration near (null) Infinity
         if epsilon_rho < 1e-6
-            # println("close to infinity")
 
             # Integration for the Particular Case of Zero-Frequency Modes
             if abs(w_mn) < 1e-8
-                # println("w_mn < 1e-8 region")
 
                 rho_I_1 = 1/PP.rho_I
                 ell_1 = ll + 1
@@ -263,7 +262,6 @@ function RHS_ID(u, p, rho)
 
             # Integration for non-zero Frequency Modes
             else
-                # println("w_mn > 1e-8 region")
                 qireal = 0
                 qiimag = w_mn*re_RI*(1 - cb / (2*PP.rho_I^2 * w_mn^2))
 
@@ -390,7 +388,6 @@ function RHS_ID(u, p, rho)
     else
         print( "rho= ", rho, "  Out of Domain error during ODE Integration at the Horizon Domain")
     end
-    # println("dR ", dR, " dQ ", dQ)
 
     if backward
         dR, dQ = -dR, -dQ
@@ -401,75 +398,123 @@ end
 
 # -----------------------------------------------
 
-"""Solve both regions, starting from the horizon and infinity
-   uses static arrays to improve perfomance
-   save :: keep HD and ID modes solutions"""
-function compute_mode(ll, mm, nf, PP; method=KenCarp5(), save=false)
-    w_mn = nf * PP.omega_r + mm * PP.omega_phi
-    p = @SVector [ll,w_mn,PP, false]
 
-    # ----- HD -----
-    u0 = @SVector [1, 0, 0, -w_mn]
+function solve_hd(ll, mm, nf, p, PP, save; do_plot=false)
+    u0 = @SVector [1, 0, 0, -p[2]]
     rhospan = (PP.rho_H_plus, PP.rho_peri)
     prob = ODEProblem(RHS_HD, u0, rhospan, p)
     # save at whole array or only last point
     save ? saveat=PP.rho_HD : saveat=PP.rho_peri
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=saveat)
+    sol = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=saveat)
 
-    # ----- HOD -----
-    u0 = last(sol.u)
+    if do_plot != false
+        sol_matrix = hcat(sol.u...)'
+        x_y = (sol.t, sol_matrix[:,1])
+        args = (:xlab=>L"\rho", :ylab=>L"\hat{R}^-_{%$ll,%$mm,%$nf}", :label=>"")
+        do_plot == 1 ? plot(x_y; args...) : plot!(x_y)
+    end
+    return sol
+end
+
+function solve_hod(ll, mm, nf, p, PP, save, sol_hd; do_plot=false)
+    u0 = last(sol_hd.u)
     u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
     rhospan = (PP.rho_peri, PP.rho_apo)
     prob = ODEProblem(RHS_HOD, u0, rhospan, p)
-    sol2 = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=PP.rho_HOD)
-    lambda_minus = last(sol2.u)[1]
+    sol = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=PP.rho_HOD)
+    lambda_minus = last(sol.u)[1]
 
-    u_matrix = hcat(sol2.u...)'
-    u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
+    sol_matrix = hcat(sol.u...)'
+    sol_matrix = sol_matrix/lambda_minus  # λ⁻ = 1
 
-    PP.single_R_HOD = u_matrix[:,1] + 1im * u_matrix[:,2]
-    PP.single_Q_HOD = u_matrix[:,3] + 1im * u_matrix[:,4]
+    PP.single_R_HOD = sol_matrix[:,1] + 1im * sol_matrix[:,2]
+    PP.single_Q_HOD = sol_matrix[:,3] + 1im * sol_matrix[:,4]
 
     # save HD region
     if save
-        u_matrix = hcat(sol.u...)'
-        u_matrix = u_matrix/lambda_minus  # λ⁻ = 1
-        PP.single_R_HD = u_matrix[:,1] + 1im * u_matrix[:,2]
-        PP.single_Q_HD = u_matrix[:,3] + 1im * u_matrix[:,4]
+        sol_hd_matrix = hcat(sol_hd.u...)'
+        sol_hd_matrix = sol_hd_matrix/lambda_minus  # λ⁻ = 1
+        PP.single_R_HD = sol_hd_matrix[:,1] + 1im * sol_hd_matrix[:,2]
+        PP.single_Q_HD = sol_hd_matrix[:,3] + 1im * sol_hd_matrix[:,4]
+    end
+    # Plot without scaling for λ⁻ = 1
+    sol_matrix = hcat(sol.u...)'
+    plot!(sol.t, sol_matrix[:,1], label="")
+    savefig("Rm"*string(ll)*"_"*string(mm)*"_"*string(nf))
+end
+
+function solve_id(ll, mm, nf, p, PP, save; do_plot=false)
+    u0 = @SVector [1, 0, 0, p[2]]
+
+    # ε_I is bigger for modes l,0,0
+    if 0 == mm == nf
+        rhospan = (-PP.rho_I + 1, -PP.rho_apo)
+    else
+        rhospan = (-PP.rho_I_minus, -PP.rho_apo)
     end
 
-    p = @SVector [ll,w_mn,PP, true]
-    # ----- ID (backwards) -----
-    u0 = @SVector [1, 0, 0, w_mn]
-    rhospan = (-PP.rho_I_minus, -PP.rho_apo)
     prob = ODEProblem(RHS_ID, u0, rhospan, p)
     # save at whole array or only last point
     save ? saveat=PP.rho_ID : saveat=PP.rho_apo
     # reverse rho -> -rho, by changing saveat sign
-    sol = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=-saveat)
+    sol = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=-saveat)
 
+    sol_matrix = hcat(sol.u...)'
 
-    # ----- IOD (backwards) -----
-    u0 = last(sol.u)
+    if do_plot != false
+        args = (:xlab=>L"\rho", :ylab=>L"\hat{R}^+_{%$ll,%$mm,%$nf}", :label=>"")
+        plot(-sol.t, sol_matrix[:,1]; args...)
+    end
+
+    if 0 == mm == nf && save
+        temp = zeros(length(sol.u) + 1, 4)
+        temp[1,:] = sol_matrix[1,:]
+        temp[2:end,:] = sol_matrix
+        sol_matrix = temp
+    end
+    return sol_matrix
+end
+
+function solve_iod(ll, mm, nf, p, PP, save, sol_id_matrix; do_plot=false)
+    u0 = sol_id_matrix[end,:]
     u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
     rhospan = (-PP.rho_apo, -PP.rho_peri)
     prob = ODEProblem(RHS_IOD, u0, rhospan, p)
     # reverse rho -> -rho, by changing saveat sign
-    sol2 = solve(prob, method, abstol=1e-14, rtol=1e-12, saveat=-PP.rho_IOD)
-    lambda_plus = last(sol2.u)[1]
+    sol = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=-PP.rho_IOD)
+    lambda_plus = last(sol.u)[1]
 
-    u_matrix = hcat(sol2.u...)'
-    u_matrix = u_matrix/lambda_plus  # λ⁺ = 1
-    PP.single_R_IOD = u_matrix[:,1] + 1im * u_matrix[:,2]
-    PP.single_Q_IOD = u_matrix[:,3] + 1im * u_matrix[:,4]
+    sol_matrix = hcat(sol.u...)'
+    sol_matrix = sol_matrix/lambda_plus  # λ⁺ = 1
+    PP.single_R_IOD = sol_matrix[:,1] + 1im * sol_matrix[:,2]
+    PP.single_Q_IOD = sol_matrix[:,3] + 1im * sol_matrix[:,4]
 
     # Save ID region
     if save
-        u_matrix = hcat(sol.u...)'
-        u_matrix = u_matrix/lambda_plus  # λ⁺ = 1
-        PP.single_R_ID = u_matrix[:,1] + 1im * u_matrix[:,2]
-        PP.single_Q_ID = u_matrix[:,3] + 1im * u_matrix[:,4]
+        sol_id_matrix = sol_id_matrix/lambda_plus  # λ⁺ = 1
+        PP.single_R_ID = sol_id_matrix[:,1] + 1im * sol_id_matrix[:,2]
+        PP.single_Q_ID = sol_id_matrix[:,3] + 1im * sol_id_matrix[:,4]
     end
+    sol_matrix = hcat(sol.u...)'
+    plot!(-sol.t, sol_matrix[:,1], label="")
+    savefig("Rp"*string(ll)*"_"*string(mm)*"_"*string(nf))
+end
+
+"""Solve both regions, starting from the horizon and infinity
+   uses static arrays to improve perfomance
+   save :: keep HD and ID modes solutions"""
+function compute_mode(ll, mm, nf, PP; method=METHOD, save=false)
+    w_mn = nf * PP.omega_r + mm * PP.omega_phi
+
+    # ----- HD -----
+    p = @SVector [ll, w_mn, PP, false]
+    sol_hd = solve_hd(ll, mm, nf, p, PP, save, do_plot=1)
+    solve_hod(ll, mm, nf, p, PP, save, sol_hd, do_plot=1)
+
+    # ----- ID (backwards) -----
+    p = @SVector [ll, w_mn, PP, true]
+    sol_id_matrix = solve_id(ll, mm, nf, p, PP, save, do_plot=1)
+    solve_iod(ll, mm, nf, p, PP, save, sol_id_matrix, do_plot=1)
 end
 
 
@@ -482,7 +527,7 @@ end
 """Solve both regions, starting from the horizon and infinity
    uses static arrays to improve perfomance
    save :: keep HD and ID modes solutions"""
-function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
+function compute_check(ll, mm, nf, PP; method=METHOD, save=false)
     w_mn = nf * PP.omega_r + mm * PP.omega_phi
     p = @SVector [ll, w_mn, PP, false]
 
@@ -492,7 +537,7 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
     prob = ODEProblem(RHS_HD, u0, rhospan, p)
     # save at whole array or only last point
     save ? saveat=PP.rho_HD : saveat=PP.rho_peri
-    sol = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=saveat)
+    sol = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=saveat)
 
     # ----- HD check -----
     p = @SVector [ll, w_mn, PP, true]
@@ -502,7 +547,7 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
     prob = ODEProblem(RHS_HD, u0, rhospan, p)
     # save at whole array or only last point
     save ? saveat=PP.rho_HD : saveat=PP.rho_H_plus
-    check = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=-saveat)
+    check = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=-saveat)
 
     uf = last(check.u)
     error =  [abs(uf[1]-1), abs(uf[2]), abs(uf[3]), abs(uf[4]+w_mn)]
@@ -510,9 +555,9 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
 
     sol_matrix = hcat(sol.u...)'
     check_matrix = hcat(check.u...)'
-    plot(sol.t, sol_matrix[:,1], xlab=L"\rho", ylab=L"R_{%$ll,%$mm,%$nf}",
-        legend = :outertopleft, size = (900, 600), label="forward")
-    plot!(-check.t, check_matrix[:,1], label="backward")
+    plot(sol.t, sol_matrix[:,1], xlab=L"\rho", ylab=L"\hat{R}^-_{%$ll,%$mm,%$nf}",
+        label="forward", color=1)
+    plot!(-check.t, check_matrix[:,1], label="backward", color=2)
 
     # ----- HOD -----
     p = @SVector [ll, w_mn, PP, false]
@@ -520,7 +565,7 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
     u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
     rhospan = (PP.rho_peri, PP.rho_apo)
     prob = ODEProblem(RHS_HOD, u0, rhospan, p)
-    sol2 = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=PP.rho_HOD)
+    sol2 = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=PP.rho_HOD)
     lambda_minus = last(sol2.u)[1]
 
     u_matrix = hcat(sol2.u...)'
@@ -543,7 +588,7 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
     u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
     rhospan = (-PP.rho_apo, -PP.rho_peri)
     prob = ODEProblem(RHS_HOD, u0, rhospan, p)
-    check = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=-PP.rho_IOD)
+    check = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=-PP.rho_IOD)
 
     uf = last(check.u)
     u0 = last(sol.u)
@@ -552,8 +597,8 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
 
     sol_matrix = hcat(sol2.u...)'
     check_matrix = hcat(check.u...)'
-    plot!(sol2.t, sol_matrix[:,1], label="forward")
-    plot!(-check.t, check_matrix[:,1], label="backward")
+    plot!(sol2.t, sol_matrix[:,1], label="", color=1)
+    plot!(-check.t, check_matrix[:,1], label="", color=2)
     savefig("Rm"*string(ll)*"_"*string(mm)*"_"*string(nf))
 
     # ----- ID (backwards) -----
@@ -564,7 +609,7 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
     # save at whole array or only last point
     save ? saveat=PP.rho_ID : saveat=PP.rho_apo
     # reverse rho -> -rho, by changing saveat sign
-    sol = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=-saveat)
+    sol = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=-saveat)
 
     # ----- ID check -----
     p = @SVector [ll, w_mn, PP, false]
@@ -573,16 +618,16 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
     rhospan = (PP.rho_apo, PP.rho_I_minus)
     prob = ODEProblem(RHS_ID, u0, rhospan, p)
     save ? saveat=PP.rho_ID : saveat=PP.rho_I_minus
-    check = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=saveat)
+    check = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=saveat)
     uf = last(check.u)
     error =  [abs(uf[1]-1), abs(uf[2]), abs(uf[3]), abs(uf[4]-w_mn)]
     println(error)
 
     sol_matrix = hcat(sol.u...)'
     check_matrix = hcat(check.u...)'
-    plot(-sol.t, sol_matrix[:,1], xlab=L"\rho", ylab=L"R_{%$ll,%$mm,%$nf}",
-        legend = :outertopleft, size = (900, 600), label="backward")
-    plot!(check.t, check_matrix[:,1], label="forward")
+    plot(-sol.t, sol_matrix[:,1], xlab=L"\rho", ylab=L"\hat{R}^+_{%$ll,%$mm,%$nf}",
+        label="backward", color=1)
+    plot!(check.t, check_matrix[:,1], label="forward", color=2)
 
 
     # ----- IOD (backwards) -----
@@ -592,7 +637,7 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
     rhospan = (-PP.rho_apo, -PP.rho_peri)
     prob = ODEProblem(RHS_IOD, u0, rhospan, p)
     # reverse rho -> -rho, by changing saveat sign
-    sol2 = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=-PP.rho_IOD)
+    sol2 = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=-PP.rho_IOD)
     lambda_plus = last(sol2.u)[1]
 
     u_matrix = hcat(sol2.u...)'
@@ -614,7 +659,7 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
     u0 = @SVector [u0[1], u0[2], u0[3], u0[4]]
     rhospan = (PP.rho_peri, PP.rho_apo)
     prob = ODEProblem(RHS_IOD, u0, rhospan, p)
-    check = solve(prob, method, abstol=ABSTOL, rtol=RTOL, saveat=PP.rho_HOD)
+    check = solve(prob, METHOD, abstol=ABSTOL, rtol=RTOL, saveat=PP.rho_HOD)
 
     uf = last(check.u)
     u0 = last(sol.u)
@@ -623,7 +668,7 @@ function compute_check(ll, mm, nf, PP; method=KenCarp5(), save=false)
 
     sol_matrix = hcat(sol2.u...)'
     check_matrix = hcat(check.u...)'
-    plot!(-sol2.t, sol_matrix[:,1], label="backward")
-    plot!(check.t, check_matrix[:,1], label="forward")
+    plot!(-sol2.t, sol_matrix[:,1], label="", color=1)
+    plot!(check.t, check_matrix[:,1], label="", color=2)
     savefig("Rp"*string(ll)*"_"*string(mm)*"_"*string(nf))
 end

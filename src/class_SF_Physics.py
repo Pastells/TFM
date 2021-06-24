@@ -124,8 +124,8 @@ class Physical_Quantities:
         based on approximate solutions of the ODEs both near the Horizon and near Infinity.
         """
 
-        epsilon_H = 1
-        epsilon_I = 1
+        epsilon_H = 1e-12
+        epsilon_I = 1e-2
         self.rho_H_plus = self.rho_H + epsilon_H
         self.rho_I_minus = self.rho_I - epsilon_I
 
@@ -135,6 +135,8 @@ class Physical_Quantities:
         if self.save:
             self.rho_HD = np.linspace(self.rho_H_plus, self.rho_peri, self.N_HD + 1)
             self.rho_ID = np.linspace(self.rho_I_minus, self.rho_apo, self.N_ID + 1)
+            print(self.rho_HD)
+            print(self.rho_ID)
 
     # ------------------------------------------------------------------------
 
@@ -309,6 +311,24 @@ class Physical_Quantities:
     # Functions
     # ------------------------------------------------------------------------
 
+    def store_mode(self, indices):
+        """Save solution from compute_mode into permanent ndarray
+        Reverse arrays from infinity region, as the integration is backwards
+        indices = (ll, mm, nf + PP.N_Fourier)"""
+
+        self.R_H[indices] = self.single_R_HOD
+        self.R_I[indices] = self.single_R_IOD[::-1]
+        self.Q_H[indices] = self.single_Q_HOD
+        self.Q_I[indices] = self.single_Q_IOD[::-1]
+
+        if self.save:
+            self.R_HD[indices] = self.single_R_HD
+            self.R_ID[indices] = self.single_R_ID[::-1]
+            self.Q_HD[indices] = self.single_Q_HD
+            self.Q_ID[indices] = self.single_Q_ID[::-1]
+
+    # ------------------------------------------------------------------------
+
     def rescale_mode(self, ll, mm, nf):
         """Compute the Values of the Field Modes (Phi,Psi)lmn [~ (R,Q)lmn in Frequency Domain] at the Particle Location
         at the different Time Collocation Points that satisfy the Boundary Conditions imposed by the Jump Conditions.
@@ -399,24 +419,6 @@ class Physical_Quantities:
 
     # ------------------------------------------------------------------------
 
-    def store(self, indices):
-        """Save solution from compute_mode into permanent ndarray
-        Reverse arrays from infinity region, as the integration is backwards
-        indices = (ll, mm, nf + PP.N_Fourier)"""
-
-        self.R_H[indices] = self.single_R_HOD
-        self.R_I[indices] = self.single_R_IOD[::-1]
-        self.Q_H[indices] = self.single_Q_HOD
-        self.Q_I[indices] = self.single_Q_IOD[::-1]
-
-        if self.save:
-            self.R_HD[indices] = self.single_R_HD
-            self.R_ID[indices] = self.single_R_ID[::-1]
-            self.Q_HD[indices] = self.single_Q_HD
-            self.Q_ID[indices] = self.single_Q_ID[::-1]
-
-    # ------------------------------------------------------------------------
-
     def saving(self):
         """Save resulting modes with pickle to restults folder"""
         logging.info("FRED RUN %f: Saving results", self.run)
@@ -438,7 +440,6 @@ class Physical_Quantities:
         for var in self.var_list:
             _pickle_dump(var)
 
-    # ------------------------------------------------------------------------
 
     def read(self, folder="results"):
         """Read resulting modes with peackel from results folder

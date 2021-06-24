@@ -197,15 +197,15 @@ def do_mode(ll, mm, nf, PP, run, save):
     save = bool, default False
         choose to save results with pickle"""
 
-    if 1 == 0 == ll == mm == nf:
-        mode_0(PP)
-    else:
-        compute_mode(ll, mm, nf, PP, save=save)
+    # if 1 == 0 == ll == mm == nf:
+    # mode_0(PP)
+    # else:
+    compute_mode(ll, mm, nf, PP, save=save)
 
     indices = (ll, mm, nf + PP.N_Fourier)
 
     # Store computed modes from compute_mode
-    PP.store(indices)
+    PP.store_mode(indices)
 
     PP.rescale_mode(ll, mm, nf)
 
@@ -376,7 +376,7 @@ if __name__ == "__main__":
         from julia import Main
 
         Main.include("src/mode_comp.jl")
-        compute_mode = Main.eval("compute_check")  # global function
+        compute_mode = Main.eval("compute_mode")  # global function
     except Exception as ex:
         logging.error("Error importing julia")
         sys.stdout.write(f"{repr(ex)}\n")
