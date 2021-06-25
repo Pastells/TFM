@@ -2,8 +2,8 @@ using StaticArrays
 using OrdinaryDiffEq
 using PyCall
 using Plots.PlotMeasures
-using Plots; pyplot(size=(1500, 1000), bottom_margin=5mm, linewidth=1.5, legend = :outertopleft)
-Plots.scalefontsizes(2)
+using Plots; pyplot(size=(1500, 1000), bottom_margin=5mm, linewidth=2)
+Plots.scalefontsizes(4)
 using LaTeXStrings
 
 # Get absolute path
@@ -409,9 +409,9 @@ function solve_hd(ll, mm, nf, p, PP, save; do_plot=false)
 
     if do_plot != false
         sol_matrix = hcat(sol.u...)'
-        x_y = (sol.t, sol_matrix[:,1])
-        args = (:xlab=>L"\rho", :ylab=>L"\hat{R}^-_{%$ll,%$mm,%$nf}", :label=>"")
-        do_plot == 1 ? plot(x_y; args...) : plot!(x_y)
+        args = (:xlab=>L"\rho", :ylab=>L"\hat{R}^-_{%$ll,%$mm,%$nf}",
+                :label=>"Horizon Domain", legend=:topleft)
+        plot(sol.t, sol_matrix[:,1]; args...)
     end
     return sol
 end
@@ -439,7 +439,7 @@ function solve_hod(ll, mm, nf, p, PP, save, sol_hd; do_plot=false)
     end
     # Plot without scaling for λ⁻ = 1
     sol_matrix = hcat(sol.u...)'
-    plot!(sol.t, sol_matrix[:,1], label="")
+    plot!(sol.t, sol_matrix[:,1], label="Oribtal Domain")
     savefig("Rm"*string(ll)*"_"*string(mm)*"_"*string(nf))
 end
 
@@ -462,7 +462,8 @@ function solve_id(ll, mm, nf, p, PP, save; do_plot=false)
     sol_matrix = hcat(sol.u...)'
 
     if do_plot != false
-        args = (:xlab=>L"\rho", :ylab=>L"\hat{R}^+_{%$ll,%$mm,%$nf}", :label=>"")
+        args = (:xlab=>L"\rho", :ylab=>L"\hat{R}^+_{%$ll,%$mm,%$nf}",
+                :label=>"Infinite Domain", legend=:topright)
         plot(-sol.t, sol_matrix[:,1]; args...)
     end
 
@@ -496,7 +497,7 @@ function solve_iod(ll, mm, nf, p, PP, save, sol_id_matrix; do_plot=false)
         PP.single_Q_ID = sol_id_matrix[:,3] + 1im * sol_id_matrix[:,4]
     end
     sol_matrix = hcat(sol.u...)'
-    plot!(-sol.t, sol_matrix[:,1], label="")
+    plot!(-sol.t, sol_matrix[:,1], label="Orbital Domain")
     savefig("Rp"*string(ll)*"_"*string(mm)*"_"*string(nf))
 end
 

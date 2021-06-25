@@ -95,16 +95,14 @@ def main(df, resfilename, args):
         except Exception as ex:
             logging.error("Error in main_run in run %d", run)
             sys.stdout.write(f"{repr(ex)}\n")
-            traceback.print_exc(ex)
+            traceback.print_exc()
 
-        """
         try:
             PP.saving()
         except Exception as ex:
             logging.error("Error saving with pickle in run %d", run)
             sys.stdout.write(f"{repr(ex)}\n")
-            traceback.print_exc(ex)
-        """
+            traceback.print_exc()
 
     # Final Time after Computations
     end_time = time.time()
@@ -184,7 +182,6 @@ def main_run(df, run, resfilename, args):
 # ---------------------------------------------------------------------
 
 
-# TODO change name of function
 def do_mode(ll, mm, nf, PP, run, save):
     """Computing the Bare Field Mode with Frequency omega_mn
     [REMEMBER: Psi is the scalar field and Phi its radial (tortoise) derivative]
@@ -197,9 +194,6 @@ def do_mode(ll, mm, nf, PP, run, save):
     save = bool, default False
         choose to save results with pickle"""
 
-    # if 1 == 0 == ll == mm == nf:
-    # mode_0(PP)
-    # else:
     compute_mode(ll, mm, nf, PP, save=save)
 
     indices = (ll, mm, nf + PP.N_Fourier)
@@ -215,16 +209,6 @@ def do_mode(ll, mm, nf, PP, run, save):
 
 
 # ---------------------------------------------------------------------
-
-
-def mode_0(PP):
-    """Analytical result of mode 0,0,0"""
-    indices = (0, 0, PP.N_Fourier)
-    PP.R_H[indices] = PP.single_R_HOD
-    PP.R_I[indices] = PP.single_R_IOD
-    PP.Q_H[indices] = PP.single_Q_HOD
-    PP.Q_I[indices] = PP.single_Q_IOD
-    pass
 
 
 def project_geodesic(PP, run):
@@ -365,14 +349,16 @@ if __name__ == "__main__":
 
     df, resfilename, args = init()
 
-    # --- julia imports ---
+    # ----------- julia imports ----------------------------
     try:
         import julia
 
-        # jl = julia.Julia(compiled_modules=False, depwarn=True)
-        jl = julia.Julia(
-            compiled_modules=False, depwarn=True, sysimage="sysimage_plots.so"
-        )
+        # In mac it should work with this one
+        # jl = julia.Julia(depwarn=True, sysimage="sysimage.so")
+
+        # Debian version:
+        jl = julia.Julia(compiled_modules=False, depwarn=True, sysimage="sysimage.so")
+
         from julia import Main
 
         Main.include("src/mode_comp.jl")
@@ -380,7 +366,7 @@ if __name__ == "__main__":
     except Exception as ex:
         logging.error("Error importing julia")
         sys.stdout.write(f"{repr(ex)}\n")
-        traceback.print_exc(ex)
+        traceback.print_exc()
 
     logging.info("julia imports done")
     # ------------------------------------------------------
